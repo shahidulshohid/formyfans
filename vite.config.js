@@ -9,5 +9,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     base: `/${PATH_BASENAME}/`,
+    server: {
+      port: 5173,
+    },
+    preview: {
+      port: 5173,
+    },
   };
 });
