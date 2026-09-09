@@ -84,19 +84,6 @@ function CustomInput({
                 "& .MuiInputBase-input": {
                     padding: "12px 16px",
                     fontSize: "15px",
-                    color: "#1F2937",
-                    fontFamily: "Montserrat",
-
-                    "&::placeholder": {
-                        color: "#9CA3AF",
-                        opacity: 1,
-                        fontWeight: 400,
-                    },
-                },
-
-                "& .MuiInputBase-input": {
-                    padding: "12px 16px",
-                    fontSize: "15px",
                     color: color || "#1F2937",
                     fontFamily: "Montserrat",
 
