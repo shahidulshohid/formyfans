@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Button,
@@ -10,11 +10,14 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import sampleAiImage from "../../assets/images/aiPowerContent/sampleAiImage.jpg";
 import DownloadIconSrc from "/aiPowerContent/downloadIcon.png";
 import PublishIconSrc from "/aiPowerContent/publishIcon.png";
+import CreatePostPublishModal from "../../components/aiContentBanner/CreatePostPublishModal";
 
 const AiImageReady = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const creationData = location.state || {};
+
+  const [openPublishModal, setOpenPublishModal] = useState(false);
 
   const currentImage = creationData.imageUrl || sampleAiImage;
 
@@ -32,17 +35,7 @@ const AiImageReady = () => {
   };
 
   const handlePublishAndPost = () => {
-    console.log("Publish & Post with data:", creationData);
-    // You can route to post creation or trigger post API
-    navigate("/home", {
-      state: {
-        newAiPost: {
-          image: currentImage,
-          script: creationData.script || "",
-          prompt: creationData.prompt || "",
-        },
-      },
-    });
+    setOpenPublishModal(true);
   };
 
   return (
@@ -243,6 +236,16 @@ const AiImageReady = () => {
           </Box>
         </Box>
       </Container>
+
+      {/* Create Post & Publish Modal */}
+      <CreatePostPublishModal
+        open={openPublishModal}
+        onClose={() => setOpenPublishModal(false)}
+        creationData={{
+          ...creationData,
+          imageUrl: currentImage,
+        }}
+      />
     </Box>
   );
 };
