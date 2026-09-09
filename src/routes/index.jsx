@@ -30,6 +30,8 @@ import AiImageReady from "../app/aiContent/aiImage/AiImageReady";
 import CreateAiVideo from "../app/aiContent/aiVideo/CreateAiVideo";
 import AiGeneratedVideoScript from "../app/aiContent/aiVideo/AiGeneratedVideoScript";
 import AiVideoReady from "../app/aiContent/aiVideo/AiVideoReady";
+import CreateAiVideoEdit from "../app/aiContent/aiVideoEdit/CreateAiVideoEdit";
+import AiGeneratedVideoEditScript from "../app/aiContent/aiVideoEdit/AiGeneratedVideoEditScript";
 
 const AUTH_LAYOUT = [
   {
@@ -244,6 +246,18 @@ const APP_LAYOUT = [
     name: "ai-video-ready",
     path: "/ai-video-ready",
     component: <AiVideoReady />,
+  },
+  {
+    id: 29,
+    name: "ai-create-video-edit",
+    path: "/ai-create-video-edit",
+    component: <CreateAiVideoEdit />,
+  },
+  {
+    id: 30,
+    name: "ai-video-edit-generated-script",
+    path: "/ai-video-edit-generated-script",
+    component: <AiGeneratedVideoEditScript />,
   },
 ];
 
