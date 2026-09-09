@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import AddExclusiveContentDialog from "./addExclusiveContent";
-import ExclusiveCard from "../../components/cards/exclusiveCard";
+import ExclusiveCard from "../../components/cards/ExclusiveCard";
 import ConfirmPopup from "../../components/pops";
 import {
   createExclusiveContent,
