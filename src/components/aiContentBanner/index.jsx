@@ -30,15 +30,17 @@ const AiContentBanner = () => {
     <>
       <Box
         sx={{
+          width: "100%",
+          boxSizing: "border-box",
           bgcolor: "#FF15721A",
           border: "1.5px solid #FF15721A",
           borderRadius: "16px",
-          px: { xs: 2.5, sm: 3 },
-          py: { xs: 1.5, sm: 1.75 },
+          px: { xs: 1.75, sm: 2.5, md: 3 },
+          py: { xs: 1.25, sm: 1.5, md: 1.75 },
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 2,
+          gap: { xs: 1.2, sm: 1.8, md: 2 },
           boxShadow: "0 2px 10px rgba(255, 20, 117, 0.06)",
           transition: "all 0.2s ease-in-out",
           "&:hover": {
@@ -47,14 +49,15 @@ const AiContentBanner = () => {
           },
         }}
       >
-        <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography
             sx={{
               color: "#FF1572",
               fontWeight: 700,
-              fontSize: { xs: "14px", sm: "16px" },
+              fontSize: { xs: "13px", sm: "15px", md: "16px" },
               lineHeight: 1.25,
               letterSpacing: "-0.2px",
+              fontFamily: "Inter, sans-serif",
             }}
           >
             AI–Powered Content
@@ -63,9 +66,10 @@ const AiContentBanner = () => {
             sx={{
               color: "#484848",
               fontWeight: 500,
-              fontSize: { xs: "12px", sm: "13px" },
-              lineHeight: 1.3,
-              mt: 0.4,
+              fontSize: { xs: "11px", sm: "12px", md: "13px" },
+              lineHeight: 1.35,
+              mt: { xs: 0.2, sm: 0.4 },
+              fontFamily: "Inter, sans-serif",
             }}
           >
             Turn your product idea into a ready-to-use UGC video.
@@ -74,23 +78,31 @@ const AiContentBanner = () => {
 
         <Button
           variant="contained"
-          startIcon={<AddToPhotosOutlinedIcon sx={{ fontSize: "18px !important" }} />}
+          startIcon={
+            <AddToPhotosOutlinedIcon
+              sx={{
+                fontSize: { xs: "16px !important", sm: "18px !important" },
+              }}
+            />
+          }
           onClick={handleCreateClick}
           sx={{
             bgcolor: "#FF1572",
             color: "#ffffff",
             borderRadius: "53px",
-            px: { xs: 2, sm: 2.8 },
-            py: { xs: 0.8, sm: 1 },
-            fontSize: { xs: "13px", sm: "15px" },
+            px: { xs: 1.5, sm: 2.2, md: 2.8 },
+            py: { xs: 0.6, sm: 0.8, md: 1 },
+            height: { xs: "34px", sm: "38px", md: "40px" },
+            fontSize: { xs: "12px", sm: "13.5px", md: "14px" },
             fontWeight: 600,
             textTransform: "none",
+            fontFamily: "Inter, sans-serif",
             boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.25)",
             whiteSpace: "nowrap",
             flexShrink: 0,
             "&:hover": {
               bgcolor: "#FF1572",
-              boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.25)",
+              boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
               transform: "translateY(-1px)",
             },
             transition: "all 0.2s ease-in-out",
