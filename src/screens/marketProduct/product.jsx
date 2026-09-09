@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useProductList } from "../../hook/productList";
 import MicImage from "../../assets/icon/mic.jpg";
-import StarIcon from "../../assets/icon/Star.svg";
+import StarIcon from "../../assets/icon/star.svg";
 import { PRODUCT_COLOURS } from "../../components/productForm/constants";
 import ProductDetailSkeleton from "../../components/skeleton/ProductDetailSkeleton";
 import useCartStore from "../../zustand/cartStore";

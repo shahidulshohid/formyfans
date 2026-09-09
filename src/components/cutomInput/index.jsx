@@ -60,7 +60,7 @@ function CustomInput({
                 "& .MuiOutlinedInput-root": {
                     borderRadius: borderRadius || "20px",
                     background: backgroundColor || "rgba(94, 19, 33, 1)",
-                    color: color||"#fff",
+                    color: color || "#fff",
                     border: "1px solid #E5E7EB",
 
                     // 🔥 remove border everywhere
