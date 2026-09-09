@@ -23,6 +23,9 @@ const AiContentBanner = () => {
     if (item.id === "image") {
       setOpenContentTypeModal(false);
       navigate("/ai-create-image");
+    } else if (item.id === "video") {
+      setOpenContentTypeModal(false);
+      navigate("/ai-create-video");
     }
   };
 

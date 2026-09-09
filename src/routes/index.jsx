@@ -24,9 +24,11 @@ import Notifications from "../app/settins/notifications";
 import LiveStreams from "../app/liveStreams";
 import SubscriptionPlans from "../screens/subscriptionPlan";
 import { Stories } from "../app/stories";
-import CreateAiImage from "../app/aiContent/CreateAiImage";
-import AiGeneratedScript from "../app/aiContent/AiGeneratedScript";
-import AiImageReady from "../app/aiContent/AiImageReady";
+import CreateAiImage from "../app/aiContent/aiImage/CreateAiImage";
+import AiGeneratedScript from "../app/aiContent/aiImage/AiGeneratedScript";
+import AiImageReady from "../app/aiContent/aiImage/AiImageReady";
+import CreateAiVideo from "../app/aiContent/aiVideo/CreateAiVideo";
+import AiGeneratedVideoScript from "../app/aiContent/aiVideo/AiGeneratedVideoScript";
 
 const AUTH_LAYOUT = [
   {
@@ -223,6 +225,18 @@ const APP_LAYOUT = [
     name: "ai-image-ready",
     path: "/ai-image-ready",
     component: <AiImageReady />,
+  },
+  {
+    id: 26,
+    name: "ai-create-video",
+    path: "/ai-create-video",
+    component: <CreateAiVideo />,
+  },
+  {
+    id: 27,
+    name: "ai-video-generated-script",
+    path: "/ai-video-generated-script",
+    component: <AiGeneratedVideoScript />,
   },
 ];
 
