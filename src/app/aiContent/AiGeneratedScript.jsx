@@ -2,11 +2,11 @@ import React, { useState } from "react";
 import {
   Box,
   Button,
-  Dialog,
-  DialogContent,
+  Container,
   TextField,
   Typography,
 } from "@mui/material";
+import { useLocation, useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ScriptIconSrc from "../../assets/images/aiPowerContent/scriptIcon.png";
 import EditIconSrc from "../../assets/images/aiPowerContent/editIcon.png";
@@ -26,16 +26,18 @@ My dry skin felt instantly rejuvenated and bouncy from day one. Packed with pure
 Within just 10 days, my skin texture noticeably smoothed out and gained that natural radiant glow. It is lightweight, non-greasy, and layers flawlessly under makeup. Highly recommend getting the starter pack before it sells out!`,
 ];
 
-const AiGeneratedScriptModal = ({
-  open,
-  onClose,
-  onBack,
-  onGenerateImage,
-  initialPrompt = "",
-}) => {
+const AiGeneratedScript = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const creationData = location.state || {};
+
   const [scriptText, setScriptText] = useState(defaultScript);
   const [isEditing, setIsEditing] = useState(false);
   const [regenIndex, setRegenIndex] = useState(0);
+
+  const handleBack = () => {
+    navigate(-1);
+  };
 
   const handleRegenerate = () => {
     const nextIndex = (regenIndex + 1) % sampleRegeneratedScripts.length;
@@ -48,51 +50,35 @@ const AiGeneratedScriptModal = ({
     setIsEditing((prev) => !prev);
   };
 
-  const handleGenerate = () => {
-    if (onGenerateImage) {
-      onGenerateImage({ script: scriptText });
-    }
+  const handleGenerateImage = () => {
+    console.log("Generate Image with Data:", {
+      ...creationData,
+      script: scriptText,
+    });
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth={false}
-      slotProps={{
-        backdrop: {
-          sx: {
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            backdropFilter: "blur(2px)",
-          },
-        },
-      }}
-      PaperProps={{
-        sx: {
-          width: { xs: "calc(100vw - 28px)", sm: "92vw", md: "1020px" },
-          maxWidth: "1020px",
-          borderRadius: { xs: "16px", md: "20px" },
-          p: { xs: 2.5, sm: 3.5, md: "36px 36px" },
-          position: "relative",
-          boxShadow: "0 20px 40px -10px rgba(0, 0, 0, 0.15)",
-          m: { xs: 1.5, sm: 2 },
-          boxSizing: "border-box",
-        },
-      }}
-    >
-      <DialogContent sx={{ p: 0, overflow: "visible" }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "#FFFFFF", pb: 8 }}>
+      <Container
+        maxWidth={false}
+        sx={{
+          maxWidth: "880px",
+          px: { xs: 2.5, sm: 4 },
+          pt: { xs: 3, sm: 5, md: 6 },
+        }}
+      >
         {/* Back Button */}
         <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
           <Button
             startIcon={<ArrowBackIcon sx={{ fontSize: "18px", color: "#000000" }} />}
-            onClick={onBack}
+            onClick={handleBack}
             sx={{
               fontFamily: "Inter, sans-serif",
               color: "#000000",
               fontWeight: 500,
               fontSize: "14px",
               lineHeight: "140%",
-              letterSpacing: "-1px",
+              letterSpacing: "-0.5px",
               textTransform: "none",
               p: 0,
               minWidth: "auto",
@@ -118,10 +104,10 @@ const AiGeneratedScriptModal = ({
             fontFamily: "Inter, sans-serif",
             fontWeight: 600,
             color: "#FF1572",
-            fontSize: { xs: "22px", sm: "28px" },
+            fontSize: { xs: "22px", sm: "26px", md: "28px" },
             lineHeight: "36px",
             letterSpacing: "-1px",
-            mb: 0.8,
+            mb: 0.6,
           }}
         >
           Your AI-generated script
@@ -130,8 +116,8 @@ const AiGeneratedScriptModal = ({
         <Typography
           sx={{
             fontFamily: "Inter, sans-serif",
-            color: "#666666",
-            fontSize: { xs: "13px", sm: "14px", md: "15px" },
+            color: "#737373",
+            fontSize: { xs: "13px", sm: "14px" },
             fontWeight: 400,
             mb: { xs: 3, sm: 3.5 },
           }}
@@ -140,14 +126,14 @@ const AiGeneratedScriptModal = ({
         </Typography>
 
         {/* AI Generated Script Label */}
-        <Box sx={{ mb: { xs: 2.5, sm: 3.5 } }}>
+        <Box sx={{ mb: { xs: 3, sm: 3.5 } }}>
           <Typography
             component="label"
             sx={{
               display: "block",
               fontFamily: "Inter, sans-serif",
               fontWeight: 500,
-              fontSize: { xs: "14px", sm: "16px" },
+              fontSize: { xs: "14px", sm: "15px", md: "16px" },
               lineHeight: "20px",
               letterSpacing: "-0.5px",
               color: "#000000",
@@ -162,9 +148,8 @@ const AiGeneratedScriptModal = ({
                 fontWeight: 500,
                 fontSize: { xs: "14px", sm: "16px" },
                 lineHeight: "20px",
-                letterSpacing: "-0.5px",
                 color: "#FF1572",
-                ml: 0.3,
+                ml: 0.4,
               }}
             >
               *
@@ -204,7 +189,7 @@ const AiGeneratedScriptModal = ({
                     fontFamily: "Inter, sans-serif",
                     fontWeight: 400,
                     fontSize: { xs: "14px", sm: "16px" },
-                    lineHeight: "140%",
+                    lineHeight: "150%",
                     letterSpacing: "0px",
                     color: "#000000",
                     p: 0,
@@ -217,7 +202,7 @@ const AiGeneratedScriptModal = ({
                   fontFamily: "Inter, sans-serif",
                   fontWeight: 400,
                   fontSize: { xs: "14px", sm: "16px" },
-                  lineHeight: "140%",
+                  lineHeight: "150%",
                   letterSpacing: "0px",
                   color: "#000000",
                   whiteSpace: "pre-line",
@@ -247,6 +232,7 @@ const AiGeneratedScriptModal = ({
               alignItems: "center",
               gap: { xs: 1, sm: 1.5 },
               flexWrap: "wrap",
+              width: { xs: "100%", sm: "auto" },
             }}
           >
             {/* Regenerate Script Button */}
@@ -266,7 +252,7 @@ const AiGeneratedScriptModal = ({
                 color: "#FFFFFF",
                 borderRadius: "53px",
                 height: "44px",
-                px: { xs: "14px", sm: "18px" },
+                px: { xs: "16px", sm: "20px" },
                 py: "10px",
                 gap: "8px",
                 fontSize: { xs: "12px", sm: "14px" },
@@ -275,6 +261,7 @@ const AiGeneratedScriptModal = ({
                 fontFamily: "Inter, sans-serif",
                 boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.25)",
                 whiteSpace: "nowrap",
+                flex: { xs: 1, sm: "none" },
                 "&:hover": {
                   bgcolor: "#FF1572",
                   boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
@@ -303,7 +290,7 @@ const AiGeneratedScriptModal = ({
                 color: "#FFFFFF",
                 borderRadius: "53px",
                 height: "44px",
-                px: { xs: "14px", sm: "18px" },
+                px: { xs: "16px", sm: "20px" },
                 py: "10px",
                 gap: "8px",
                 fontSize: { xs: "12px", sm: "14px" },
@@ -312,6 +299,7 @@ const AiGeneratedScriptModal = ({
                 fontFamily: "Inter, sans-serif",
                 boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.25)",
                 whiteSpace: "nowrap",
+                flex: { xs: 1, sm: "none" },
                 "&:hover": {
                   bgcolor: "#1558D6",
                   boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
@@ -327,7 +315,7 @@ const AiGeneratedScriptModal = ({
           {/* Right Action Button: Generate Image */}
           <Button
             variant="contained"
-            onClick={handleGenerate}
+            onClick={handleGenerateImage}
             endIcon={
               <Box
                 component="img"
@@ -341,7 +329,7 @@ const AiGeneratedScriptModal = ({
               color: "#FFFFFF",
               borderRadius: "53px",
               height: "44px",
-              px: { xs: "18px", sm: "22px" },
+              px: { xs: "18px", sm: "24px" },
               py: "10px",
               gap: "8px",
               fontSize: { xs: "13px", sm: "15px" },
@@ -362,9 +350,9 @@ const AiGeneratedScriptModal = ({
             Generate Image
           </Button>
         </Box>
-      </DialogContent>
-    </Dialog>
+      </Container>
+    </Box>
   );
 };
 
-export default AiGeneratedScriptModal;
+export default AiGeneratedScript;

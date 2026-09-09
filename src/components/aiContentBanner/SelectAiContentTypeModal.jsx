@@ -30,7 +30,7 @@ const contentTypes = [
 ];
 
 const SelectAiContentTypeModal = ({ open, onClose, onSelect }) => {
-  const [selectedType, setSelectedType] = useState("video");
+  const [selectedType, setSelectedType] = useState("image");
 
   const handleSelect = (item) => {
     setSelectedType(item.id);

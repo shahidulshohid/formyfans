@@ -2,12 +2,11 @@ import React, { useState } from "react";
 import {
   Box,
   Button,
-  Dialog,
-  DialogContent,
-  IconButton,
+  Container,
   TextField,
   Typography,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowIconSrc from "../../assets/images/aiPowerContent/arrowIcon.png";
 
@@ -24,60 +23,48 @@ const aspectRatios = [
   { id: "4:5", label: "4 : 5" },
 ];
 
-const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
+const CreateAiImage = () => {
+  const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
   const [selectedResolution, setSelectedResolution] = useState("1536x1024");
   const [selectedAspectRatio, setSelectedAspectRatio] = useState("16:9");
 
   const handleContinue = () => {
-    if (onContinue) {
-      onContinue({
+    navigate("/ai-generated-script", {
+      state: {
         prompt,
         resolution: selectedResolution,
         aspectRatio: selectedAspectRatio,
-      });
-    }
+      },
+    });
+  };
+
+  const handleBack = () => {
+    navigate(-1);
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth={false}
-      slotProps={{
-        backdrop: {
-          sx: {
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            backdropFilter: "blur(2px)",
-          },
-        },
-      }}
-      PaperProps={{
-        sx: {
-          width: { xs: "calc(100vw - 28px)", sm: "92vw", md: "1020px" },
-          maxWidth: "1020px",
-          borderRadius: { xs: "16px", md: "20px" },
-          p: { xs: 2.5, sm: 3.5, md: "36px 36px" },
-          position: "relative",
-          boxShadow: "0 20px 40px -10px rgba(0, 0, 0, 0.15)",
-          m: { xs: 1.5, sm: 2 },
-          boxSizing: "border-box",
-        },
-      }}
-    >
-      <DialogContent sx={{ p: 0, overflow: "visible" }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "#FFFFFF", pb: 8 }}>
+      <Container
+        maxWidth={false}
+        sx={{
+          maxWidth: "880px",
+          px: { xs: 2.5, sm: 4 },
+          pt: { xs: 3, sm: 5, md: 6 },
+        }}
+      >
         {/* Back Button */}
         <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
           <Button
             startIcon={<ArrowBackIcon sx={{ fontSize: "18px", color: "#000000" }} />}
-            onClick={onBack}
+            onClick={handleBack}
             sx={{
               fontFamily: "Inter, sans-serif",
               color: "#000000",
               fontWeight: 500,
               fontSize: "14px",
               lineHeight: "140%",
-              letterSpacing: "-1px",
+              letterSpacing: "-0.5px",
               textTransform: "none",
               p: 0,
               minWidth: "auto",
@@ -103,10 +90,10 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
             fontFamily: "Inter, sans-serif",
             fontWeight: 600,
             color: "#FF1572",
-            fontSize: { xs: "22px", sm: "28px" },
+            fontSize: { xs: "22px", sm: "26px", md: "28px" },
             lineHeight: "36px",
             letterSpacing: "-1px",
-            mb: 0.8,
+            mb: 0.6,
           }}
         >
           Create Images with AI
@@ -115,8 +102,8 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
         <Typography
           sx={{
             fontFamily: "Inter, sans-serif",
-            color: "#666666",
-            fontSize: { xs: "13px", sm: "14px", md: "15px" },
+            color: "#737373",
+            fontSize: { xs: "13px", sm: "14px" },
             fontWeight: 400,
             mb: { xs: 3, sm: 3.5 },
           }}
@@ -125,14 +112,14 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
         </Typography>
 
         {/* Image Generation Prompt Input */}
-        <Box sx={{ mb: { xs: 2.5, sm: 3 } }}>
+        <Box sx={{ mb: { xs: 2.5, sm: 3.5 } }}>
           <Typography
             component="label"
             sx={{
               display: "block",
               fontFamily: "Inter, sans-serif",
               fontWeight: 500,
-              fontSize: { xs: "14px", sm: "16px" },
+              fontSize: { xs: "14px", sm: "15px", md: "16px" },
               lineHeight: "20px",
               letterSpacing: "-0.5px",
               color: "#000000",
@@ -147,9 +134,8 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
                 fontWeight: 500,
                 fontSize: { xs: "14px", sm: "16px" },
                 lineHeight: "20px",
-                letterSpacing: "-0.5px",
                 color: "#FF1572",
-                ml: 0.3,
+                ml: 0.4,
               }}
             >
               *
@@ -199,14 +185,14 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
         </Box>
 
         {/* Resolution Section */}
-        <Box sx={{ mb: { xs: 2.5, sm: 3 } }}>
+        <Box sx={{ mb: { xs: 2.5, sm: 3.5 } }}>
           <Typography
             component="label"
             sx={{
               display: "block",
               fontFamily: "Inter, sans-serif",
               fontWeight: 500,
-              fontSize: { xs: "14px", sm: "16px" },
+              fontSize: { xs: "14px", sm: "15px", md: "16px" },
               lineHeight: "20px",
               letterSpacing: "-0.5px",
               color: "#000000",
@@ -221,9 +207,8 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
                 fontWeight: 500,
                 fontSize: { xs: "14px", sm: "16px" },
                 lineHeight: "20px",
-                letterSpacing: "-0.5px",
                 color: "#FF1572",
-                ml: 0.3,
+                ml: 0.4,
               }}
             >
               *
@@ -251,7 +236,7 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
                     bgcolor: isSelected ? "#FF1572" : "#EBECEF",
                     color: isSelected ? "#FFFFFF" : "#000000",
                     borderRadius: "12px",
-                    py: { xs: 1.1, sm: 1.4 },
+                    py: { xs: 1.1, sm: 1.3 },
                     px: { xs: 1, sm: 2 },
                     textAlign: "center",
                     cursor: "pointer",
@@ -259,7 +244,7 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
                     transition: "all 0.2s ease-in-out",
                     fontFamily: "Inter, sans-serif",
                     fontWeight: 500,
-                    fontSize: { xs: "12px", sm: "15px", md: "16px" },
+                    fontSize: { xs: "12px", sm: "14px", md: "15px" },
                     lineHeight: "140%",
                     letterSpacing: "-0.5px",
                     whiteSpace: "nowrap",
@@ -284,7 +269,7 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
               display: "block",
               fontFamily: "Inter, sans-serif",
               fontWeight: 500,
-              fontSize: { xs: "14px", sm: "16px" },
+              fontSize: { xs: "14px", sm: "15px", md: "16px" },
               lineHeight: "20px",
               letterSpacing: "-0.5px",
               color: "#000000",
@@ -299,9 +284,8 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
                 fontWeight: 500,
                 fontSize: { xs: "14px", sm: "16px" },
                 lineHeight: "20px",
-                letterSpacing: "-0.5px",
                 color: "#FF1572",
-                ml: 0.3,
+                ml: 0.4,
               }}
             >
               *
@@ -329,7 +313,7 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
                     bgcolor: isSelected ? "#FF1572" : "#EBECEF",
                     color: isSelected ? "#FFFFFF" : "#000000",
                     borderRadius: "12px",
-                    py: { xs: 1.1, sm: 1.4 },
+                    py: { xs: 1.1, sm: 1.3 },
                     px: { xs: 0.5, sm: 2 },
                     textAlign: "center",
                     cursor: "pointer",
@@ -337,7 +321,7 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
                     transition: "all 0.2s ease-in-out",
                     fontFamily: "Inter, sans-serif",
                     fontWeight: 500,
-                    fontSize: { xs: "12px", sm: "15px", md: "16px" },
+                    fontSize: { xs: "12px", sm: "14px", md: "15px" },
                     lineHeight: "140%",
                     letterSpacing: "-0.5px",
                     whiteSpace: "nowrap",
@@ -378,10 +362,10 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
               color: "#FFFFFF",
               borderRadius: "53px",
               height: "44px",
-              px: "18px",
+              px: "22px",
               py: "10px",
-              gap: "10px",
-              fontSize: "15px",
+              gap: "8px",
+              fontSize: "14px",
               fontWeight: 600,
               textTransform: "none",
               fontFamily: "Inter, sans-serif",
@@ -398,10 +382,9 @@ const CreateAiImageModal = ({ open, onClose, onBack, onContinue }) => {
             Continue Script
           </Button>
         </Box>
-      </DialogContent>
-    </Dialog>
+      </Container>
+    </Box>
   );
 };
 
-export default CreateAiImageModal;
-
+export default CreateAiImage;

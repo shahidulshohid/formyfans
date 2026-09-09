@@ -24,6 +24,8 @@ import Notifications from "../app/settins/notifications";
 import LiveStreams from "../app/liveStreams";
 import SubscriptionPlans from "../screens/subscriptionPlan";
 import { Stories } from "../app/stories";
+import CreateAiImage from "../app/aiContent/CreateAiImage";
+import AiGeneratedScript from "../app/aiContent/AiGeneratedScript";
 
 const AUTH_LAYOUT = [
   {
@@ -101,7 +103,6 @@ const APP_LAYOUT = [
     path: "/market-place",
     component: <MarketPlace />,
   },
-
   {
     id: 6,
     name: "Category",
@@ -121,88 +122,101 @@ const APP_LAYOUT = [
     component: <ViewProfile />,
   },
   {
-    id: 8,
-    name: "view-profile",
+    id: 9,
+    name: "view-profile-tab",
     path: "/:username/:tab",
     component: <ViewProfile />,
   },
   {
-    id: 9,
+    id: 10,
     name: "market-product",
     path: "/market-product/:productCode",
     component: <MarketProduct />,
   },
   {
-    id: 10,
+    id: 11,
     name: "cart",
     path: "/cart",
     component: <Cart />,
   },
   {
-    id: 11,
+    id: 12,
     name: "order",
     path: "/order",
     component: <Order />,
   },
   {
-    id: 12,
+    id: 13,
     name: "shipping-detail",
     path: "/shipping-detail",
     component: <ShippingDetail />,
   },
   {
-    id: 13,
+    id: 14,
     name: "order-listing",
     path: "/order-listing",
     component: <OrderListing />,
   },
   {
-    id: 19,
+    id: 15,
     name: "my-orders",
     path: "/my-orders",
     component: <MyOrders />,
   },
   {
-    id: 14,
+    id: 16,
     name: "product-listing",
     path: "/product-listing",
     component: <ProductListing />,
   },
   {
-    id: 15,
+    id: 17,
     name: "create-product",
     path: "/create-product",
     component: <CreateProduct />,
   },
   {
-    id: 16,
+    id: 18,
     name: "order-details",
     path: "/order-details",
     component: <OrderDetails />,
   },
   {
-    id: 17,
+    id: 19,
     name: "notifications",
     path: "/notifications",
     component: <Notifications />,
   },
   {
-    id: 18,
+    id: 20,
     name: "live-streams",
     path: "/live-streams",
     component: <LiveStreams />,
   },
   {
-    id: 20,
+    id: 21,
     name: "stories",
     path: "/stories",
     component: <Stories />,
   },
   {
-    id: 21,
+    id: 22,
     name: "Subscription Plans",
     path: "/subscription-plans",
     component: <SubscriptionPlans />,
   },
+  {
+    id: 23,
+    name: "ai-create-image",
+    path: "/ai-create-image",
+    component: <CreateAiImage />,
+  },
+  {
+    id: 24,
+    name: "ai-generated-script",
+    path: "/ai-generated-script",
+    component: <AiGeneratedScript />,
+  },
 ];
+
 export { AUTH_LAYOUT, APP_LAYOUT };

@@ -1,17 +1,14 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AddToPhotosOutlinedIcon from "@mui/icons-material/AddToPhotosOutlined";
 import { Box, Button, Typography } from "@mui/material";
 import AiSubscriptionModal from "./AiSubscriptionModal";
 import SelectAiContentTypeModal from "./SelectAiContentTypeModal";
-import CreateAiImageModal from "./CreateAiImageModal";
-import AiGeneratedScriptModal from "./AiGeneratedScriptModal";
 
 const AiContentBanner = () => {
+  const navigate = useNavigate();
   const [openSubscriptionModal, setOpenSubscriptionModal] = useState(false);
   const [openContentTypeModal, setOpenContentTypeModal] = useState(false);
-  const [openCreateImageModal, setOpenCreateImageModal] = useState(false);
-  const [openScriptModal, setOpenScriptModal] = useState(false);
-  const [creationData, setCreationData] = useState(null);
   const subscriptions = true;
 
   const handleCreateClick = () => {
@@ -25,19 +22,8 @@ const AiContentBanner = () => {
   const handleContentTypeSelect = (item) => {
     if (item.id === "image") {
       setOpenContentTypeModal(false);
-      setOpenCreateImageModal(true);
+      navigate("/ai-create-image");
     }
-  };
-
-  const handleContinueToScript = (data) => {
-    setCreationData(data);
-    setOpenCreateImageModal(false);
-    setOpenScriptModal(true);
-  };
-
-  const handleGenerateFinalImage = (data) => {
-    console.log("Generate Image Data:", { ...creationData, ...data });
-    setOpenScriptModal(false);
   };
 
   return (
@@ -125,29 +111,6 @@ const AiContentBanner = () => {
         open={openContentTypeModal}
         onClose={() => setOpenContentTypeModal(false)}
         onSelect={handleContentTypeSelect}
-      />
-
-      {/* Create AI Image Modal (when AI Image is clicked) */}
-      <CreateAiImageModal
-        open={openCreateImageModal}
-        onClose={() => setOpenCreateImageModal(false)}
-        onBack={() => {
-          setOpenCreateImageModal(false);
-          setOpenContentTypeModal(true);
-        }}
-        onContinue={handleContinueToScript}
-      />
-
-      {/* AI Generated Script Modal (when Continue Script is clicked) */}
-      <AiGeneratedScriptModal
-        open={openScriptModal}
-        onClose={() => setOpenScriptModal(false)}
-        onBack={() => {
-          setOpenScriptModal(false);
-          setOpenCreateImageModal(true);
-        }}
-        onGenerateImage={handleGenerateFinalImage}
-        initialPrompt={creationData?.prompt || ""}
       />
     </>
   );
