@@ -233,7 +233,6 @@ const AiGeneratedScript = () => {
               display: "flex",
               alignItems: "center",
               gap: { xs: 1, sm: 1.5 },
-              flexWrap: "wrap",
               width: { xs: "100%", sm: "auto" },
             }}
           >
@@ -246,7 +245,11 @@ const AiGeneratedScript = () => {
                   component="img"
                   src={ScriptIconSrc}
                   alt="Regenerate"
-                  sx={{ width: 18, height: 18, objectFit: "contain" }}
+                  sx={{
+                    width: { xs: 15, sm: 18 },
+                    height: { xs: 15, sm: 18 },
+                    objectFit: "contain",
+                  }}
                 />
               }
               sx={{
@@ -254,16 +257,21 @@ const AiGeneratedScript = () => {
                 color: "#FFFFFF",
                 borderRadius: "53px",
                 height: "44px",
-                px: { xs: "16px", sm: "20px" },
+                px: { xs: "10px", sm: "18px", md: "20px" },
                 py: "10px",
-                gap: "8px",
-                fontSize: { xs: "12px", sm: "14px" },
+                gap: { xs: "4px", sm: "8px" },
+                fontSize: { xs: "11px", sm: "13px", md: "14px" },
                 fontWeight: 600,
                 textTransform: "none",
                 fontFamily: "Inter, sans-serif",
                 boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.25)",
                 whiteSpace: "nowrap",
                 flex: { xs: 1, sm: "none" },
+                minWidth: 0,
+                "& .MuiButton-endIcon": {
+                  ml: { xs: "4px", sm: "8px" },
+                  mr: 0,
+                },
                 "&:hover": {
                   bgcolor: "#FF1572",
                   boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
@@ -284,7 +292,11 @@ const AiGeneratedScript = () => {
                   component="img"
                   src={EditIconSrc}
                   alt="Edit"
-                  sx={{ width: 16, height: 16, objectFit: "contain" }}
+                  sx={{
+                    width: { xs: 14, sm: 16 },
+                    height: { xs: 14, sm: 16 },
+                    objectFit: "contain",
+                  }}
                 />
               }
               sx={{
@@ -292,16 +304,21 @@ const AiGeneratedScript = () => {
                 color: "#FFFFFF",
                 borderRadius: "53px",
                 height: "44px",
-                px: { xs: "16px", sm: "20px" },
+                px: { xs: "10px", sm: "18px", md: "20px" },
                 py: "10px",
-                gap: "8px",
-                fontSize: { xs: "12px", sm: "14px" },
+                gap: { xs: "4px", sm: "8px" },
+                fontSize: { xs: "11px", sm: "13px", md: "14px" },
                 fontWeight: 600,
                 textTransform: "none",
                 fontFamily: "Inter, sans-serif",
                 boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.25)",
                 whiteSpace: "nowrap",
                 flex: { xs: 1, sm: "none" },
+                minWidth: 0,
+                "& .MuiButton-endIcon": {
+                  ml: { xs: "4px", sm: "8px" },
+                  mr: 0,
+                },
                 "&:hover": {
                   bgcolor: "#1558D6",
                   boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
