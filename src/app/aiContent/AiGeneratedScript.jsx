@@ -51,9 +51,11 @@ const AiGeneratedScript = () => {
   };
 
   const handleGenerateImage = () => {
-    console.log("Generate Image with Data:", {
-      ...creationData,
-      script: scriptText,
+    navigate("/ai-image-ready", {
+      state: {
+        ...creationData,
+        script: scriptText,
+      },
     });
   };
 

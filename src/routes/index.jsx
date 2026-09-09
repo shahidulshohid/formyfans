@@ -26,6 +26,7 @@ import SubscriptionPlans from "../screens/subscriptionPlan";
 import { Stories } from "../app/stories";
 import CreateAiImage from "../app/aiContent/CreateAiImage";
 import AiGeneratedScript from "../app/aiContent/AiGeneratedScript";
+import AiImageReady from "../app/aiContent/AiImageReady";
 
 const AUTH_LAYOUT = [
   {
@@ -216,6 +217,12 @@ const APP_LAYOUT = [
     name: "ai-generated-script",
     path: "/ai-generated-script",
     component: <AiGeneratedScript />,
+  },
+  {
+    id: 25,
+    name: "ai-image-ready",
+    path: "/ai-image-ready",
+    component: <AiImageReady />,
   },
 ];
 
