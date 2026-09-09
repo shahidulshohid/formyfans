@@ -29,6 +29,7 @@ import AiGeneratedScript from "../app/aiContent/aiImage/AiGeneratedScript";
 import AiImageReady from "../app/aiContent/aiImage/AiImageReady";
 import CreateAiVideo from "../app/aiContent/aiVideo/CreateAiVideo";
 import AiGeneratedVideoScript from "../app/aiContent/aiVideo/AiGeneratedVideoScript";
+import AiVideoReady from "../app/aiContent/aiVideo/AiVideoReady";
 
 const AUTH_LAYOUT = [
   {
@@ -237,6 +238,12 @@ const APP_LAYOUT = [
     name: "ai-video-generated-script",
     path: "/ai-video-generated-script",
     component: <AiGeneratedVideoScript />,
+  },
+  {
+    id: 28,
+    name: "ai-video-ready",
+    path: "/ai-video-ready",
+    component: <AiVideoReady />,
   },
 ];
 

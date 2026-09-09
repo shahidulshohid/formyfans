@@ -51,11 +51,12 @@ const AiGeneratedVideoScript = () => {
   };
 
   const handleGenerateVideo = () => {
-    console.log("Generate Video with Data:", {
-      ...creationData,
-      script: scriptText,
+    navigate("/ai-video-ready", {
+      state: {
+        ...creationData,
+        script: scriptText,
+      },
     });
-    // Future video ready page navigation will go here
   };
 
   return (
