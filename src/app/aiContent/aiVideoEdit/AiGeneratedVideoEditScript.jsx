@@ -51,7 +51,7 @@ const AiGeneratedVideoEditScript = () => {
   };
 
   const handleGenerateVideo = () => {
-    navigate("/ai-video-ready", {
+    navigate("/ai-video-edit-ready", {
       state: {
         ...creationData,
         script: scriptText,
