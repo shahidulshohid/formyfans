@@ -19,7 +19,7 @@ const features = [
   "AI Video Editing",
 ];
 
-const AiSubscriptionModal = ({ open, onClose, onSubscribe }) => {
+const AiSubscriptionModal = ({ open, onClose, onSubscribe, setSubscriptionsTrue }) => {
   const [creditAmount, setCreditAmount] = useState(100);
 
   const handleDecrease = () => {
@@ -38,6 +38,7 @@ const AiSubscriptionModal = ({ open, onClose, onSubscribe }) => {
     if (onSubscribe) {
       onSubscribe({ creditAmount, price: calculatePrice(creditAmount) });
     }
+    setSubscriptionsTrue(true);
     onClose?.();
   };
 

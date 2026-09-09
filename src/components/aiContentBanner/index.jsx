@@ -9,7 +9,9 @@ const AiContentBanner = () => {
   const navigate = useNavigate();
   const [openSubscriptionModal, setOpenSubscriptionModal] = useState(false);
   const [openContentTypeModal, setOpenContentTypeModal] = useState(false);
-  const subscriptions = true;
+  const [subscriptionsTrue, setSubscriptionsTrue] = useState(false);
+  // const subscriptions = true;
+  const subscriptions = subscriptionsTrue;
 
   const handleCreateClick = () => {
     if (!subscriptions) {
@@ -122,6 +124,7 @@ const AiContentBanner = () => {
       <AiSubscriptionModal
         open={openSubscriptionModal}
         onClose={() => setOpenSubscriptionModal(false)}
+        setSubscriptionsTrue={setSubscriptionsTrue}
       />
 
       {/* Select AI Content Type Modal (when subscriptions is true) */}
