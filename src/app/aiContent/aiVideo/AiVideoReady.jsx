@@ -128,14 +128,14 @@ const AiVideoReady = () => {
           {/* Video Preview Card */}
           <Box
             sx={{
-              width: { xs: "100%", sm: "360px", md: "380px" },
-              maxWidth: "400px",
-              height: { xs: "380px", sm: "470px", md: "490px" },
+              width: { xs: "100%", sm: "355px" },
+              maxWidth: "355px",
+              height: { xs: "460px", sm: "497px" },
               borderRadius: "16px",
               overflow: "hidden",
               boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.08)",
               bgcolor: "#000000",
-              border: "1px solid #EDEDED",
+              border: "1px solid rgba(255, 255, 255, 0.07)",
               position: "relative",
               cursor: "pointer",
             }}
