@@ -10,7 +10,12 @@ export const SocketProvider = ({ children }) => {
 
   useEffect(() => {
     // Connect to socket.io server
-    const socketIo = io(socketUrl);
+    const socketIo = io(socketUrl, {
+      transports: ["websocket", "polling"],
+      upgrade: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+    });
     setSocket(socketIo);
 
     // Cleanup when component unmounts
