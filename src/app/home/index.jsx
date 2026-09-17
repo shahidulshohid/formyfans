@@ -4,8 +4,9 @@ import StoryRow from "../../components/storyRow";
 import ProfileSection from "./profileSection";
 import StreamingFollowerSuggestions from "./streamingFollowerSuggestions";
 import PostSection from "./post";
+import AiContentBanner from "../../components/aiContentBanner";
 
-const HEADER_HEIGHT = 80; 
+const HEADER_HEIGHT = 80;
 
 const HomePage = () => {
   return (
@@ -36,6 +37,9 @@ const HomePage = () => {
           <Grid item size={{ xs: 12, md: 9.5, lg: 6.5 }}>
             <Box>
               <StoryRow />
+            </Box>
+            <Box sx={{ mt: 2 }}>
+              <AiContentBanner />
             </Box>
             <Box>
               <PostSection />

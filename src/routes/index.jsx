@@ -25,6 +25,15 @@ import LiveStreams from "../app/liveStreams";
 import LiveRoom from "../app/liveStreams/LiveRoom";
 import SubscriptionPlans from "../screens/subscriptionPlan";
 import { Stories } from "../app/stories";
+import CreateAiImage from "../app/aiContent/aiImage/CreateAiImage";
+import AiGeneratedScript from "../app/aiContent/aiImage/AiGeneratedScript";
+import AiImageReady from "../app/aiContent/aiImage/AiImageReady";
+import CreateAiVideo from "../app/aiContent/aiVideo/CreateAiVideo";
+import AiGeneratedVideoScript from "../app/aiContent/aiVideo/AiGeneratedVideoScript";
+import AiVideoReady from "../app/aiContent/aiVideo/AiVideoReady";
+import CreateAiVideoEdit from "../app/aiContent/aiVideoEdit/CreateAiVideoEdit";
+import AiGeneratedVideoEditScript from "../app/aiContent/aiVideoEdit/AiGeneratedVideoEditScript";
+import AiVideoEditReady from "../app/aiContent/aiVideoEdit/AiVideoEditReady";
 
 const AUTH_LAYOUT = [
   {
@@ -210,6 +219,60 @@ const APP_LAYOUT = [
     name: "Subscription Plans",
     path: "/subscription-plans",
     component: <SubscriptionPlans />,
+  },
+  {
+    id: 23,
+    name: "ai-create-image",
+    path: "/ai-create-image",
+    component: <CreateAiImage />,
+  },
+  {
+    id: 24,
+    name: "ai-generated-script",
+    path: "/ai-generated-script",
+    component: <AiGeneratedScript />,
+  },
+  {
+    id: 25,
+    name: "ai-image-ready",
+    path: "/ai-image-ready",
+    component: <AiImageReady />,
+  },
+  {
+    id: 26,
+    name: "ai-create-video",
+    path: "/ai-create-video",
+    component: <CreateAiVideo />,
+  },
+  {
+    id: 27,
+    name: "ai-video-generated-script",
+    path: "/ai-video-generated-script",
+    component: <AiGeneratedVideoScript />,
+  },
+  {
+    id: 28,
+    name: "ai-video-ready",
+    path: "/ai-video-ready",
+    component: <AiVideoReady />,
+  },
+  {
+    id: 29,
+    name: "ai-create-video-edit",
+    path: "/ai-create-video-edit",
+    component: <CreateAiVideoEdit />,
+  },
+  {
+    id: 30,
+    name: "ai-video-edit-generated-script",
+    path: "/ai-video-edit-generated-script",
+    component: <AiGeneratedVideoEditScript />,
+  },
+  {
+    id: 31,
+    name: "ai-video-edit-ready",
+    path: "/ai-video-edit-ready",
+    component: <AiVideoEditReady />,
   },
 ];
 export { AUTH_LAYOUT, APP_LAYOUT };
