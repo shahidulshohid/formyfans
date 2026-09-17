@@ -57,7 +57,7 @@ const CreatePostBox = ({
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-  if (!user || user?.role !== USER_ROLES.CREATOR) return null;
+  // if (!user || user?.role !== USER_ROLES.CREATOR) return null; // ami comand kore rakhsi ai line
 
   // Shared style for the attachment-option buttons (Photo/Video, GIF, Camera)
   const optionBtnSx = {
