@@ -7,6 +7,7 @@ import { SocketContext } from "./context/SocketContext";
 import { APP_LAYOUT, AUTH_LAYOUT } from "./routes";
 import { AuthProtectedLayout, ProtectedLayout } from "./routes/routes";
 import { InterestDialog, ProfileIncompleteDialog } from "./components/dialogs";
+import AiChatbot from "./components/aiChatbot";
 import useConversationStore from "./zustand/conversationStore";
 import useUserStore from "./zustand/userUserStore";
 import { syncUserFromServer } from "./utils/syncUser";
@@ -152,6 +153,7 @@ function AppContent() {
           ))}
         </Route>
       </Routes>
+      <AiChatbot />
     </>
   );
 }

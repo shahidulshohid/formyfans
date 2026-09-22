@@ -9,6 +9,7 @@ import sampleAirplaneVideoThumb from "./images/aiPowerContent/sampleAirplaneVide
 import scriptIcon from "./images/aiPowerContent/scriptIcon.png";
 import uploadIcon from "./images/aiPowerContent/uploadIcon.png";
 import vectorIcon from "./images/aiPowerContent/Vector.png";
+import aiChatBoatImg from "./images/aiPowerContent/aiChatBoatImg.png";
 
 export {
   aiImage,
@@ -22,4 +23,6 @@ export {
   scriptIcon,
   uploadIcon,
   vectorIcon,
+  aiChatBoatImg,
+  aiChatBoatImg as aiChatbotImg,
 };
