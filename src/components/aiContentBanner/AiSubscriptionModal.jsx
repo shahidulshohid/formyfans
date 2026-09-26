@@ -683,7 +683,7 @@ const AiSubscriptionModal = ({
                   fontWeight: 500,
                 }}
               >
-                (${Number(pricePerCredit || 0).toFixed(2)} / credit)
+                (${pricePerCredit} / credit)
               </Typography>
               {calculating && (
                 <CircularProgress size={14} sx={{ color: "#FF1572", ml: 0.5 }} />
