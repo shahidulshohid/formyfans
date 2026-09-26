@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -13,6 +13,7 @@ import { toast } from "react-toastify";
 import Header from "../../../components/header";
 import { arrowIcon } from "../../../assets/aiAssets";
 import { refineAiPrompt } from "../../../api/aiContent/prompts";
+import { connectAiSocket } from "../../../api/aiContent/aiSocket";
 
 const resolutions = [
   { id: "480p", label: "480p" },
@@ -35,12 +36,20 @@ const CreateAiImage = () => {
   const [selectedAspectRatio, setSelectedAspectRatio] = useState("16:9");
   const [loading, setLoading] = useState(false);
 
+  // Connect AI Socket on page render (http://46.202.130.209:18081)
+  useEffect(() => {
+    connectAiSocket();
+  }, []);
+
   // Call /ai/prompts/refine API
   const handleContinue = async () => {
     if (!prompt.trim()) {
       toast.error("Please enter a prompt to generate your image.");
       return;
     }
+
+    // Ensure socket is active
+    connectAiSocket();
 
     setLoading(true);
 
