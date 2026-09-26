@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogContent,
   IconButton,
@@ -10,16 +11,249 @@ import {
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import RemoveIcon from "@mui/icons-material/Remove";
 import AddIcon from "@mui/icons-material/Add";
-import { getCreditPricing } from "../../api/aiContent";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import {
+  CardCvcElement,
+  CardExpiryElement,
+  CardNumberElement,
+  Elements,
+  useElements,
+  useStripe,
+} from "@stripe/react-stripe-js";
+import { toast } from "react-toastify";
+import {
+  calculateCreditPrice,
+  getCreditPricing,
+  purchaseAiCredits,
+} from "../../api/aiContent";
+import { isStripeKeyConfigured, stripePromise } from "../../config/stripe";
 
 const defaultFeatures = [
   "AI Video Generation",
   "AI Image Generation",
   "AI Video Editing",
 ];
+
+const stripeFieldSx = {
+  p: 1.25,
+  border: "1px solid rgba(0, 0, 0, 0.2)",
+  borderRadius: "8px",
+  bgcolor: "#fff",
+  "&:focus-within": {
+    borderColor: "#FF1572",
+    boxShadow: "0 0 0 1px #FF1572",
+  },
+};
+
+const stripeElementStyle = {
+  base: {
+    fontSize: "15px",
+    color: "#222222",
+    fontFamily: "Inter, sans-serif",
+    "::placeholder": { color: "#9CA3AF" },
+  },
+  invalid: { color: "#EF4444" },
+};
+
+/**
+ * Stripe Payment Form for AI Credit Purchase
+ */
+const AiCreditStripeForm = ({
+  clientSecret,
+  credits,
+  amount,
+  onSuccess,
+  onBack,
+  onClose,
+}) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
+
+  const handlePay = async (e) => {
+    e.preventDefault();
+    if (!stripe || !elements || !clientSecret) return;
+
+    const cardNumber = elements.getElement(CardNumberElement);
+    if (!cardNumber) {
+      toast.error("Card input is not ready yet.");
+      return;
+    }
+
+    setProcessing(true);
+    setErrorMsg(null);
+
+    try {
+      const { error, paymentIntent } = await stripe.confirmCardPayment(
+        clientSecret,
+        {
+          payment_method: { card: cardNumber },
+        }
+      );
+
+      if (error) {
+        setErrorMsg(error.message);
+        toast.error(error.message || "Payment failed");
+        return;
+      }
+
+      if (paymentIntent?.status === "succeeded" || paymentIntent?.id) {
+        toast.success("AI Credits purchased successfully!");
+        onSuccess?.({
+          paymentIntentId: paymentIntent.id,
+          credits,
+          amount,
+          status: paymentIntent.status,
+        });
+      } else {
+        setErrorMsg("Payment could not be completed.");
+        toast.error("Payment could not be completed.");
+      }
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message || err?.message || "Payment failed";
+      setErrorMsg(msg);
+      toast.error(msg);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handlePay}>
+      <Box sx={{ mb: 2.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+          <IconButton
+            size="small"
+            onClick={onBack}
+            disabled={processing}
+            sx={{ p: 0.5, color: "#555555", "&:hover": { bgcolor: "#F3F4F6" } }}
+          >
+            <ArrowBackIcon fontSize="small" />
+          </IconButton>
+          <Typography
+            sx={{
+              fontWeight: 600,
+              color: "#000000",
+              fontSize: { xs: "16px", sm: "17px" },
+            }}
+          >
+            Payment Details
+          </Typography>
+        </Box>
+        <Typography sx={{ color: "#6B7280", fontSize: "12px", pl: 3.5 }}>
+          Total: <strong style={{ color: "#FF1572" }}>${amount}</strong> for{" "}
+          <strong>{credits?.toLocaleString()} Credits</strong>
+        </Typography>
+      </Box>
+
+      <Stack spacing={1.8} sx={{ mb: 2.5 }}>
+        <Box>
+          <Typography
+            sx={{ fontSize: "12px", fontWeight: 600, color: "#374151", mb: 0.5 }}
+          >
+            Card Number
+          </Typography>
+          <Box sx={stripeFieldSx}>
+            <CardNumberElement
+              options={{ style: stripeElementStyle, showIcon: true }}
+            />
+          </Box>
+        </Box>
+
+        <Stack direction="row" spacing={1.5}>
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              sx={{ fontSize: "12px", fontWeight: 600, color: "#374151", mb: 0.5 }}
+            >
+              Expiration
+            </Typography>
+            <Box sx={stripeFieldSx}>
+              <CardExpiryElement options={{ style: stripeElementStyle }} />
+            </Box>
+          </Box>
+
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              sx={{ fontSize: "12px", fontWeight: 600, color: "#374151", mb: 0.5 }}
+            >
+              CVC
+            </Typography>
+            <Box sx={stripeFieldSx}>
+              <CardCvcElement options={{ style: stripeElementStyle }} />
+            </Box>
+          </Box>
+        </Stack>
+      </Stack>
+
+      {errorMsg && (
+        <Typography
+          sx={{
+            color: "#EF4444",
+            fontSize: "12px",
+            mb: 2,
+            bgcolor: "#FEF2F2",
+            p: 1,
+            borderRadius: "6px",
+          }}
+        >
+          {errorMsg}
+        </Typography>
+      )}
+
+      <Stack spacing={1.2}>
+        <Button
+          fullWidth
+          type="submit"
+          variant="contained"
+          disabled={processing || !stripe}
+          startIcon={!processing && <LockOutlinedIcon sx={{ fontSize: 18 }} />}
+          sx={{
+            bgcolor: "#FF1572",
+            color: "#ffffff",
+            borderRadius: "12px",
+            py: 1.3,
+            fontSize: "14px",
+            fontWeight: 700,
+            textTransform: "none",
+            boxShadow: "0 4px 12px rgba(255, 21, 114, 0.25)",
+            "&:hover": {
+              bgcolor: "#FF1572",
+              boxShadow: "0 6px 16px rgba(255, 21, 114, 0.35)",
+            },
+            transition: "all 0.2s ease-in-out",
+          }}
+        >
+          {processing ? (
+            <CircularProgress size={22} sx={{ color: "#ffffff" }} />
+          ) : (
+            `Pay $${amount}`
+          )}
+        </Button>
+
+        <Button
+          fullWidth
+          onClick={onBack}
+          disabled={processing}
+          sx={{
+            color: "#6B7280",
+            textTransform: "none",
+            fontSize: "13px",
+            fontWeight: 500,
+            "&:hover": { bgcolor: "#F3F4F6", color: "#374151" },
+          }}
+        >
+          Cancel
+        </Button>
+      </Stack>
+    </form>
+  );
+};
 
 const AiSubscriptionModal = ({
   open,
@@ -30,13 +264,25 @@ const AiSubscriptionModal = ({
   const [pricingData, setPricingData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [creditAmount, setCreditAmount] = useState(100);
+  const [calculatedPrice, setCalculatedPrice] = useState(null);
+  const [calculating, setCalculating] = useState(false);
+
+  // Purchase & Payment step states
+  const [step, setStep] = useState("SELECTION"); // "SELECTION" | "PAYMENT"
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [purchaseResult, setPurchaseResult] = useState(null);
+
+  const debounceTimerRef = useRef(null);
 
   useEffect(() => {
     if (open) {
+      setStep("SELECTION");
+      setPurchaseResult(null);
       fetchPricingData();
     }
   }, [open]);
 
+  // Fetch Pricing Plans on Open
   const fetchPricingData = async () => {
     setLoading(true);
     try {
@@ -46,6 +292,8 @@ const AiSubscriptionModal = ({
         setPricingData(data);
         if (data.defaultCredits) {
           setCreditAmount(data.defaultCredits);
+          // Trigger initial calculate price
+          handleTriggerPriceCalculation(data.defaultCredits, data.pricePerCredit);
         }
       }
     } catch (error) {
@@ -68,18 +316,42 @@ const AiSubscriptionModal = ({
       ? pricingData.features
       : defaultFeatures;
 
+  // Real-time backend calculation using /credits/calculate-price
+  const handleTriggerPriceCalculation = (credits, rate = pricePerCredit) => {
+    const numCredits = typeof credits === "number" ? credits : parseInt(credits, 10);
+    if (isNaN(numCredits) || numCredits <= 0) return;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(async () => {
+      setCalculating(true);
+      try {
+        const res = await calculateCreditPrice({ credits: numCredits });
+        if (res?.data?.data?.priceUsd !== undefined) {
+          setCalculatedPrice(res.data.data.priceUsd);
+        }
+      } catch (err) {
+        console.error("Failed to calculate credit price:", err);
+      } finally {
+        setCalculating(false);
+      }
+    }, 350);
+  };
+
   const handleDecrease = () => {
-    setCreditAmount((prev) => {
-      const current = typeof prev === "number" ? prev : minCredits;
-      return Math.max(minCredits, current - 10);
-    });
+    const current = typeof creditAmount === "number" ? creditAmount : minCredits;
+    const newAmount = Math.max(minCredits, current - 10);
+    setCreditAmount(newAmount);
+    handleTriggerPriceCalculation(newAmount);
   };
 
   const handleIncrease = () => {
-    setCreditAmount((prev) => {
-      const current = typeof prev === "number" ? prev : minCredits;
-      return Math.min(maxCredits, current + 10);
-    });
+    const current = typeof creditAmount === "number" ? creditAmount : minCredits;
+    const newAmount = Math.min(maxCredits, current + 10);
+    setCreditAmount(newAmount);
+    handleTriggerPriceCalculation(newAmount);
   };
 
   const handleCreditChange = (e) => {
@@ -91,30 +363,81 @@ const AiSubscriptionModal = ({
     const num = parseInt(val, 10);
     if (!isNaN(num)) {
       setCreditAmount(num);
+      handleTriggerPriceCalculation(num);
     }
   };
 
   const handleCreditBlur = () => {
+    let finalVal = creditAmount;
     if (!creditAmount || creditAmount < minCredits) {
+      finalVal = minCredits;
       setCreditAmount(minCredits);
     } else if (creditAmount > maxCredits) {
+      finalVal = maxCredits;
       setCreditAmount(maxCredits);
     }
+    handleTriggerPriceCalculation(finalVal);
   };
 
-  const calculatePrice = (credits) => {
-    const num = typeof credits === "number" ? credits : minCredits;
+  // Helper for displaying price (uses API calculate result if available, or fallback to exact formula)
+  const getDisplayPrice = () => {
+    if (calculatedPrice !== null && calculatedPrice !== undefined) {
+      return Number(calculatedPrice).toFixed(2);
+    }
+    const num = typeof creditAmount === "number" ? creditAmount : minCredits;
     return (num * pricePerCredit).toFixed(2);
   };
 
-  const handleSubscribe = () => {
-    const finalCredits = typeof creditAmount === "number" ? creditAmount : minCredits;
+  // Purchase handler calling /credits/purchase
+  const handlePurchase = async () => {
+    const finalCredits =
+      typeof creditAmount === "number" ? creditAmount : minCredits;
+    setPurchaseLoading(true);
+
+    try {
+      const response = await purchaseAiCredits({ credits: finalCredits });
+      const body = response?.data;
+
+      if (body?.status === "success" && body?.data) {
+        const purchaseData = body.data;
+        setPurchaseResult(purchaseData);
+
+        // If clientSecret is returned and Stripe is configured, proceed to card payment step
+        if (purchaseData?.clientSecret && isStripeKeyConfigured()) {
+          setStep("PAYMENT");
+        } else {
+          // If no Stripe key or direct flow completed
+          toast.success(body?.message || "AI Credits purchased successfully!");
+          if (onSubscribe) {
+            onSubscribe({
+              creditAmount: finalCredits,
+              price: getDisplayPrice(),
+              purchaseData,
+              pricingData,
+            });
+          }
+          setSubscriptionsTrue?.(true);
+          onClose?.();
+        }
+      } else {
+        toast.error(body?.message || "Failed to create credit purchase");
+      }
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.message || err?.message || "Purchase failed"
+      );
+    } finally {
+      setPurchaseLoading(false);
+    }
+  };
+
+  const handlePaymentSuccess = (paymentResult) => {
     if (onSubscribe) {
       onSubscribe({
-        creditAmount: finalCredits,
-        price: calculatePrice(finalCredits),
-        pricePerCredit,
-        planName,
+        creditAmount: paymentResult.credits,
+        price: paymentResult.amount,
+        paymentResult,
+        purchaseResult,
         pricingData,
       });
     }
@@ -176,6 +499,22 @@ const AiSubscriptionModal = ({
             <Skeleton variant="rounded" width="100%" height={44} />
             <Skeleton variant="rounded" width="100%" height={48} sx={{ mt: 1 }} />
           </Box>
+        ) : step === "PAYMENT" && purchaseResult?.clientSecret ? (
+          <Elements
+            stripe={stripePromise}
+            options={{
+              clientSecret: purchaseResult.clientSecret,
+            }}
+          >
+            <AiCreditStripeForm
+              clientSecret={purchaseResult.clientSecret}
+              credits={purchaseResult.credits || creditAmount}
+              amount={purchaseResult.priceUsd || getDisplayPrice()}
+              onSuccess={handlePaymentSuccess}
+              onBack={() => setStep("SELECTION")}
+              onClose={onClose}
+            />
+          </Elements>
         ) : (
           <>
             {/* Title */}
@@ -216,7 +555,7 @@ const AiSubscriptionModal = ({
                   lineHeight: 1.1,
                 }}
               >
-                ${calculatePrice(creditAmount)}
+                ${getDisplayPrice()}
               </Typography>
               <Typography
                 sx={{
@@ -227,6 +566,9 @@ const AiSubscriptionModal = ({
               >
                 (${pricePerCredit} / credit)
               </Typography>
+              {calculating && (
+                <CircularProgress size={14} sx={{ color: "#FF1572", ml: 0.5 }} />
+              )}
             </Box>
 
             {/* Feature List */}
@@ -300,7 +642,7 @@ const AiSubscriptionModal = ({
                 {/* Minus button */}
                 <IconButton
                   onClick={handleDecrease}
-                  disabled={creditAmount <= minCredits}
+                  disabled={creditAmount <= minCredits || purchaseLoading}
                   sx={{
                     width: 44,
                     height: 44,
@@ -344,6 +686,7 @@ const AiSubscriptionModal = ({
                     onBlur={handleCreditBlur}
                     min={minCredits}
                     max={maxCredits}
+                    disabled={purchaseLoading}
                     style={{
                       border: "none",
                       outline: "none",
@@ -361,7 +704,7 @@ const AiSubscriptionModal = ({
                 {/* Plus button */}
                 <IconButton
                   onClick={handleIncrease}
-                  disabled={creditAmount >= maxCredits}
+                  disabled={creditAmount >= maxCredits || purchaseLoading}
                   sx={{
                     width: 44,
                     height: 44,
@@ -387,7 +730,8 @@ const AiSubscriptionModal = ({
             <Button
               fullWidth
               variant="contained"
-              onClick={handleSubscribe}
+              onClick={handlePurchase}
+              disabled={purchaseLoading || loading}
               sx={{
                 bgcolor: "#FF1572",
                 color: "#ffffff",
@@ -404,7 +748,11 @@ const AiSubscriptionModal = ({
                 transition: "all 0.2s ease-in-out",
               }}
             >
-              Subscribe
+              {purchaseLoading ? (
+                <CircularProgress size={22} sx={{ color: "#ffffff" }} />
+              ) : (
+                `Subscribe • $${getDisplayPrice()}`
+              )}
             </Button>
           </>
         )}
