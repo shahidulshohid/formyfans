@@ -12,11 +12,13 @@ import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import PauseRoundedIcon from "@mui/icons-material/PauseRounded";
 import CreatePostPublishModal from "../../../components/aiContentBanner/CreatePostPublishModal";
 import Header from "../../../components/header";
+import { toast } from "react-toastify";
 import {
   downloadIcon,
   publishIcon,
   sampleAirplaneVideoThumb,
 } from "../../../assets/aiAssets";
+import { downloadMedia } from "../../../api/aiContent/downloadMedia";
 
 const DEFAULT_SAMPLE_VIDEO_THUMB = sampleAirplaneVideoThumb;
 
@@ -27,6 +29,7 @@ const AiVideoReady = () => {
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [openPublishModal, setOpenPublishModal] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const currentMedia = creationData.videoUrl || creationData.imageUrl || DEFAULT_SAMPLE_VIDEO_THUMB;
 
@@ -38,13 +41,24 @@ const AiVideoReady = () => {
     setIsPlaying((prev) => !prev);
   };
 
-  const handleDownload = () => {
-    const link = document.createElement("a");
-    link.href = currentMedia;
-    link.download = "ai-generated-video.jpg";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async () => {
+    if (!currentMedia) {
+      toast.error("No video/image available to download.");
+      return;
+    }
+
+    setDownloading(true);
+    const fileName = `ai-video-${creationData.generationId || Date.now()}.jpg`;
+
+    try {
+      await downloadMedia(currentMedia, fileName);
+      toast.success("Media downloaded to your Downloads folder!");
+    } catch (err) {
+      console.error("Download error:", err);
+      toast.error("Failed to download media. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const handlePublishAndPost = () => {

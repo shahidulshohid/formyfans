@@ -21,6 +21,7 @@ import {
   subscribeToAiGeneration,
   extractAiMediaUrl,
 } from "../../../api/aiContent/aiSocket";
+import { downloadMedia } from "../../../api/aiContent/downloadMedia";
 
 const DEFAULT_SAMPLE_IMAGE = sampleAirplaneVideoThumb;
 
@@ -40,6 +41,7 @@ const AiImageReady = () => {
   const [statusMessage, setStatusMessage] = useState(
     creationData.message || "Your image is being created by AI. Please check back shortly."
   );
+  const [downloading, setDownloading] = useState(false);
 
   // Subscribe to real-time AI socket events (ai:generation_progress, ai:generation_completed, ai:generation_failed)
   useEffect(() => {
@@ -134,29 +136,26 @@ const AiImageReady = () => {
     navigate(-1);
   };
 
+  /**
+   * Direct file download to user's local Downloads folder
+   */
   const handleDownload = async () => {
-    if (!currentImage) return;
+    if (!currentImage) {
+      toast.error("No image available to download.");
+      return;
+    }
+
+    setDownloading(true);
+    const fileName = `ai-image-${creationData.generationId || Date.now()}.jpg`;
 
     try {
-      const response = await fetch(currentImage);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = `ai-image-${creationData.generationId || Date.now()}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      // Direct download fallback
-      const link = document.createElement("a");
-      link.href = currentImage;
-      link.target = "_blank";
-      link.download = `ai-image-${creationData.generationId || Date.now()}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      await downloadMedia(currentImage, fileName);
+      toast.success("Image downloaded to your Downloads folder!");
+    } catch (err) {
+      console.error("Download error:", err);
+      toast.error("Failed to download image. Please try again.");
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -327,13 +326,18 @@ const AiImageReady = () => {
             <Button
               variant="outlined"
               onClick={handleDownload}
+              disabled={downloading || isProcessing}
               startIcon={
-                <Box
-                  component="img"
-                  src={downloadIcon}
-                  alt="Download"
-                  sx={{ width: 18, height: 18, objectFit: "contain" }}
-                />
+                downloading ? (
+                  <CircularProgress size={16} sx={{ color: "#FF1572" }} />
+                ) : (
+                  <Box
+                    component="img"
+                    src={downloadIcon}
+                    alt="Download"
+                    sx={{ width: 18, height: 18, objectFit: "contain" }}
+                  />
+                )
               }
               sx={{
                 bgcolor: "#FFFFFF",
@@ -355,18 +359,24 @@ const AiImageReady = () => {
                 "&:hover": {
                   borderColor: "#FF1572",
                   bgcolor: "#FFF5F8",
-                  transform: "translateY(-1px)",
+                  transform: downloading || isProcessing ? "none" : "translateY(-1px)",
+                },
+                "&.Mui-disabled": {
+                  color: "#9CA3AF",
+                  borderColor: "#E5E7EB",
+                  bgcolor: "#FAFAFA",
                 },
                 transition: "all 0.2s ease-in-out",
               }}
             >
-              Download
+              {downloading ? "Downloading..." : "Download"}
             </Button>
 
             {/* Publish & Post Button */}
             <Button
               variant="contained"
               onClick={handlePublishAndPost}
+              disabled={isProcessing}
               startIcon={
                 <Box
                   component="img"
@@ -393,7 +403,12 @@ const AiImageReady = () => {
                 "&:hover": {
                   bgcolor: "#FF1572",
                   boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
-                  transform: "translateY(-1px)",
+                  transform: isProcessing ? "none" : "translateY(-1px)",
+                },
+                "&.Mui-disabled": {
+                  bgcolor: "#E5E7EB",
+                  color: "#9CA3AF",
+                  boxShadow: "none",
                 },
                 transition: "all 0.2s ease-in-out",
               }}
