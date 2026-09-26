@@ -13,9 +13,9 @@ import Header from "../../../components/header";
 import { arrowIcon } from "../../../assets/aiAssets";
 
 const resolutions = [
-  { id: "1024x1024", label: "1024 × 1024" },
-  { id: "1536x1024", label: "1536 × 1024" },
-  { id: "2048x2048", label: "2048 × 2048" },
+  { id: "480p", label: "480p" },
+  { id: "720p", label: "720p" },
+  { id: "1080p", label: "1080p" },
 ];
 
 const aspectRatios = [
@@ -36,7 +36,8 @@ const durations = [
 const CreateAiVideo = () => {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
-  const [selectedResolution, setSelectedResolution] = useState("1536x1024");
+  const [style, setStyle] = useState("Cinematic, Photorealistic");
+  const [selectedResolution, setSelectedResolution] = useState("1080p");
   const [selectedAspectRatio, setSelectedAspectRatio] = useState("16:9");
   const [selectedDuration, setSelectedDuration] = useState("10");
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -46,6 +47,7 @@ const CreateAiVideo = () => {
       state: {
         type: "video",
         prompt,
+        style: style.trim() || "Cinematic, Photorealistic",
         resolution: selectedResolution,
         aspectRatio: selectedAspectRatio,
         duration: selectedDuration,
@@ -190,6 +192,71 @@ const CreateAiVideo = () => {
                 height: "100% !important",
                 overflow: "auto !important",
                 fontFamily: "Inter, sans-serif",
+              },
+              "& .MuiInputBase-input::placeholder": {
+                color: "#9CA3AF",
+                opacity: 1,
+                fontSize: { xs: "12px", sm: "14px" },
+              },
+            }}
+          />
+        </Box>
+
+        {/* Style Section */}
+        <Box sx={{ mb: { xs: 2.5, sm: 3.5 } }}>
+          <Typography
+            component="label"
+            sx={{
+              display: "block",
+              fontFamily: "Inter, sans-serif",
+              fontWeight: 500,
+              fontSize: { xs: "14px", sm: "15px", md: "16px" },
+              lineHeight: "20px",
+              letterSpacing: "-0.5px",
+              color: "#000000",
+              mb: 1.2,
+            }}
+          >
+            Style
+            <Box
+              component="span"
+              sx={{
+                fontFamily: "Inter, sans-serif",
+                fontWeight: 500,
+                fontSize: { xs: "14px", sm: "16px" },
+                lineHeight: "20px",
+                color: "#FF1572",
+                ml: 0.4,
+              }}
+            >
+              *
+            </Box>
+          </Typography>
+
+          <TextField
+            fullWidth
+            value={style}
+            onChange={(e) => setStyle(e.target.value)}
+            placeholder="e.g. Cinematic, Photorealistic"
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                height: { xs: "44px", sm: "48px" },
+                borderRadius: "12px",
+                bgcolor: "#FFFFFF",
+                fontSize: { xs: "13px", sm: "14px" },
+                fontFamily: "Inter, sans-serif",
+                color: "#333333",
+                "& fieldset": {
+                  borderColor: "#B3B3B3",
+                  borderWidth: "1px",
+                },
+                "&:hover fieldset": {
+                  borderColor: "#888888",
+                },
+                "&.Mui-focused fieldset": {
+                  borderColor: "#FF1572",
+                  borderWidth: "1.5px",
+                },
               },
               "& .MuiInputBase-input::placeholder": {
                 color: "#9CA3AF",

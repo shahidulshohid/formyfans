@@ -2,64 +2,147 @@ import React, { useState } from "react";
 import {
   Box,
   Button,
+  CircularProgress,
   Container,
   TextField,
   Typography,
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { toast } from "react-toastify";
 import Header from "../../../components/header";
 import {
   arrowIcon,
   editIcon,
   scriptIcon,
 } from "../../../assets/aiAssets";
+import { refineAiPrompt } from "../../../api/aiContent/prompts";
+import { createAiGeneration } from "../../../api/aiContent/generations";
 
 const defaultScript = `Okay, I have been sleeping on this and I cannot believe I waited so long to try it.
 This HydroGlow Serum has completely changed my morning routine. The hyaluronic acid complex actually penetrates — you can feel it — and within two weeks my skin looked more plump and hydrated than it has in years. It's fragrance-free, absorbs instantly, and works under makeup without pilling. Link in bio.
 They have a starter kit right now that's honestly a steal. Your skin will thank you.`;
-
-const sampleRegeneratedScripts = [
-  `Okay, I have been sleeping on this and I cannot believe I waited so long to try it.
-This HydroGlow Serum has completely changed my morning routine. The hyaluronic acid complex actually penetrates — you can feel it — and within two weeks my skin looked more plump and hydrated than it has in years. It's fragrance-free, absorbs instantly, and works under makeup without pilling. Link in bio.
-They have a starter kit right now that's honestly a steal. Your skin will thank you.`,
-  `Stop scrolling if you want glass skin! I finally tried this viral HydroGlow Serum and the hype is 100% real.
-My dry skin felt instantly rejuvenated and bouncy from day one. Packed with pure hyaluronic acid that deeply absorbs without any stickiness. Check the link in my bio to grab their limited-time starter kit!`,
-  `Here is my honest review on the product everyone is talking about: HydroGlow Serum.
-Within just 10 days, my skin texture noticeably smoothed out and gained that natural radiant glow. It is lightweight, non-greasy, and layers flawlessly under makeup. Highly recommend getting the starter pack before it sells out!`,
-];
 
 const AiGeneratedScript = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const creationData = location.state || {};
 
-  const [scriptText, setScriptText] = useState(defaultScript);
+  const [scriptText, setScriptText] = useState(
+    creationData.refinedPrompt || creationData.prompt || defaultScript
+  );
   const [isEditing, setIsEditing] = useState(false);
-  const [regenIndex, setRegenIndex] = useState(0);
+  const [regenLoading, setRegenLoading] = useState(false);
+  const [generateLoading, setGenerateLoading] = useState(false);
 
   const handleBack = () => {
     navigate(-1);
   };
 
-  const handleRegenerate = () => {
-    const nextIndex = (regenIndex + 1) % sampleRegeneratedScripts.length;
-    setRegenIndex(nextIndex);
-    setScriptText(sampleRegeneratedScripts[nextIndex]);
-    setIsEditing(false);
+  const handleRegenerate = async () => {
+    const rawPrompt =
+      creationData.originalPrompt || creationData.prompt || scriptText;
+
+    if (!rawPrompt) {
+      toast.error("No prompt available to regenerate.");
+      return;
+    }
+
+    setRegenLoading(true);
+    try {
+      const payload = {
+        type: (creationData.type || "IMAGE").toUpperCase(),
+        prompt: rawPrompt,
+        style: creationData.style || "Cinematic, Photorealistic",
+        settings: {
+          resolution: creationData.resolution || "1080p",
+          aspectRatio: creationData.aspectRatio || "16:9",
+        },
+      };
+
+      const response = await refineAiPrompt(payload);
+      const resBody = response?.data;
+
+      if (resBody?.status === "success" && resBody?.data) {
+        const newRefined = resBody.data.refinedPrompt || resBody.data.originalPrompt;
+        setScriptText(newRefined);
+        setIsEditing(false);
+        toast.success(resBody.message || "Script regenerated successfully!");
+      } else {
+        toast.error(resBody?.message || "Failed to regenerate script.");
+      }
+    } catch (error) {
+      console.error("Error regenerating script:", error);
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "An error occurred while regenerating the script.";
+      toast.error(errorMsg);
+    } finally {
+      setRegenLoading(false);
+    }
   };
 
   const handleToggleEdit = () => {
     setIsEditing((prev) => !prev);
   };
 
-  const handleGenerateImage = () => {
-    navigate("/ai-image-ready", {
-      state: {
-        ...creationData,
-        script: scriptText,
-      },
-    });
+  // Call POST /ai/generations
+  const handleGenerateImage = async () => {
+    const finalPrompt = scriptText.trim();
+    if (!finalPrompt) {
+      toast.error("Please enter or generate a script prompt first.");
+      return;
+    }
+
+    setGenerateLoading(true);
+
+    const payload = {
+      type: "IMAGE",
+      prompt: finalPrompt,
+      resolution: creationData.resolution || "1080p",
+      aspectRatio: creationData.aspectRatio || "16:9",
+    };
+
+    try {
+      const response = await createAiGeneration(payload);
+      const resBody = response?.data;
+
+      if (resBody?.status === "success" && resBody?.data) {
+        const genData = resBody.data;
+        toast.success(resBody.message || "AI image generation started. Status is processing.");
+
+        navigate("/ai-image-ready", {
+          state: {
+            ...creationData,
+            script: finalPrompt,
+            refinedPrompt: finalPrompt,
+            generationId: genData.generationId,
+            contentId: genData.contentId,
+            generationData: genData,
+            status: genData.status,
+            progress: genData.progress,
+            prompt: genData.prompt || finalPrompt,
+            resolution: creationData.resolution || "1080p",
+            aspectRatio: creationData.aspectRatio || "16:9",
+            imageUrl: genData.imageUrl || genData.outputUrl || null,
+          },
+        });
+      } else {
+        const errorMsg =
+          resBody?.message || "Failed to start AI image generation. Please try again.";
+        toast.error(errorMsg);
+      }
+    } catch (error) {
+      console.error("Error creating AI image generation:", error);
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "An error occurred while starting image generation.";
+      toast.error(errorMsg);
+    } finally {
+      setGenerateLoading(false);
+    }
   };
 
   return (
@@ -244,13 +327,18 @@ const AiGeneratedScript = () => {
             <Button
               variant="contained"
               onClick={handleRegenerate}
+              disabled={regenLoading || generateLoading}
               endIcon={
-                <Box
-                  component="img"
-                  src={scriptIcon}
-                  alt="Regenerate"
-                  sx={{ width: 16, height: 16, objectFit: "contain" }}
-                />
+                regenLoading ? (
+                  <CircularProgress size={14} sx={{ color: "#FFFFFF" }} />
+                ) : (
+                  <Box
+                    component="img"
+                    src={scriptIcon}
+                    alt="Regenerate"
+                    sx={{ width: 16, height: 16, objectFit: "contain" }}
+                  />
+                )
               }
               sx={{
                 bgcolor: "#FF1572",
@@ -275,18 +363,19 @@ const AiGeneratedScript = () => {
                 "&:hover": {
                   bgcolor: "#FF1572",
                   boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
-                  transform: "translateY(-1px)",
+                  transform: regenLoading || generateLoading ? "none" : "translateY(-1px)",
                 },
                 transition: "all 0.2s ease-in-out",
               }}
             >
-              Regenerate Script
+              {regenLoading ? "Regenerating..." : "Regenerate Script"}
             </Button>
 
             {/* Edit Script Button */}
             <Button
               variant="contained"
               onClick={handleToggleEdit}
+              disabled={regenLoading || generateLoading}
               endIcon={
                 <Box
                   component="img"
@@ -318,7 +407,7 @@ const AiGeneratedScript = () => {
                 "&:hover": {
                   bgcolor: "#1558D6",
                   boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
-                  transform: "translateY(-1px)",
+                  transform: regenLoading || generateLoading ? "none" : "translateY(-1px)",
                 },
                 transition: "all 0.2s ease-in-out",
               }}
@@ -331,13 +420,18 @@ const AiGeneratedScript = () => {
           <Button
             variant="contained"
             onClick={handleGenerateImage}
+            disabled={generateLoading || regenLoading}
             endIcon={
-              <Box
-                component="img"
-                src={arrowIcon}
-                alt="Generate Image"
-                sx={{ width: 16, height: 16, objectFit: "contain" }}
-              />
+              generateLoading ? (
+                <CircularProgress size={16} sx={{ color: "#FFFFFF" }} />
+              ) : (
+                <Box
+                  component="img"
+                  src={arrowIcon}
+                  alt="Generate Image"
+                  sx={{ width: 16, height: 16, objectFit: "contain" }}
+                />
+              )
             }
             sx={{
               bgcolor: "#FF1572",
@@ -357,12 +451,12 @@ const AiGeneratedScript = () => {
               "&:hover": {
                 bgcolor: "#FF1572",
                 boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
-                transform: "translateY(-1px)",
+                transform: generateLoading || regenLoading ? "none" : "translateY(-1px)",
               },
               transition: "all 0.2s ease-in-out",
             }}
           >
-            Generate Image
+            {generateLoading ? "Generating Image..." : "Generate Image"}
           </Button>
         </Box>
       </Container>

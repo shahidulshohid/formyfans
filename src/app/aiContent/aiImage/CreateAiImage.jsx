@@ -2,19 +2,22 @@ import React, { useState } from "react";
 import {
   Box,
   Button,
+  CircularProgress,
   Container,
   TextField,
   Typography,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { toast } from "react-toastify";
 import Header from "../../../components/header";
 import { arrowIcon } from "../../../assets/aiAssets";
+import { refineAiPrompt } from "../../../api/aiContent/prompts";
 
 const resolutions = [
-  { id: "1024x1024", label: "1024 × 1024" },
-  { id: "1536x1024", label: "1536 × 1024" },
-  { id: "2048x2048", label: "2048 × 2048" },
+  { id: "480p", label: "480p" },
+  { id: "720p", label: "720p" },
+  { id: "1080p", label: "1080p" },
 ];
 
 const aspectRatios = [
@@ -27,18 +30,67 @@ const aspectRatios = [
 const CreateAiImage = () => {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
-  const [selectedResolution, setSelectedResolution] = useState("1536x1024");
+  const [style, setStyle] = useState("Cinematic, Photorealistic");
+  const [selectedResolution, setSelectedResolution] = useState("1080p");
   const [selectedAspectRatio, setSelectedAspectRatio] = useState("16:9");
+  const [loading, setLoading] = useState(false);
 
-  const handleContinue = () => {
-    navigate("/ai-generated-script", {
-      state: {
-        type: "image",
-        prompt,
+  // Call /ai/prompts/refine API
+  const handleContinue = async () => {
+    if (!prompt.trim()) {
+      toast.error("Please enter a prompt to generate your image.");
+      return;
+    }
+
+    setLoading(true);
+
+    const appliedStyle = style.trim() || "Cinematic, Photorealistic";
+
+    const payload = {
+      type: "IMAGE",
+      prompt: prompt.trim(),
+      style: appliedStyle,
+      settings: {
         resolution: selectedResolution,
         aspectRatio: selectedAspectRatio,
       },
-    });
+    };
+
+    try {
+      const response = await refineAiPrompt(payload);
+      const resBody = response?.data;
+
+      if (resBody?.status === "success" && resBody?.data) {
+        const refineData = resBody.data;
+        toast.success(resBody.message || "Prompt refined successfully!");
+
+        navigate("/ai-generated-script", {
+          state: {
+            type: "image",
+            prompt: prompt.trim(),
+            refinedPrompt: refineData.refinedPrompt || prompt.trim(),
+            originalPrompt: refineData.originalPrompt || prompt.trim(),
+            promptId: refineData.promptId,
+            style: refineData.style || appliedStyle,
+            resolution: selectedResolution,
+            aspectRatio: selectedAspectRatio,
+            refineData,
+          },
+        });
+      } else {
+        const errorMsg = resBody?.message || "Failed to refine prompt. Please try again.";
+        toast.error(errorMsg);
+      }
+    } catch (error) {
+      console.error("Error refining prompt:", error);
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "An error occurred while refining the prompt.";
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBack = () => {
@@ -150,6 +202,7 @@ const CreateAiImage = () => {
             fullWidth
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
+            disabled={loading}
             placeholder="Describe the image you want to generate, including the subject, style, background, and mood..."
             sx={{
               "& .MuiOutlinedInput-root": {
@@ -177,6 +230,72 @@ const CreateAiImage = () => {
                 height: "100% !important",
                 overflow: "auto !important",
                 fontFamily: "Inter, sans-serif",
+              },
+              "& .MuiInputBase-input::placeholder": {
+                color: "#9CA3AF",
+                opacity: 1,
+                fontSize: { xs: "12px", sm: "14px" },
+              },
+            }}
+          />
+        </Box>
+
+        {/* Style Section */}
+        <Box sx={{ mb: { xs: 2.5, sm: 3.5 } }}>
+          <Typography
+            component="label"
+            sx={{
+              display: "block",
+              fontFamily: "Inter, sans-serif",
+              fontWeight: 500,
+              fontSize: { xs: "14px", sm: "15px", md: "16px" },
+              lineHeight: "20px",
+              letterSpacing: "-0.5px",
+              color: "#000000",
+              mb: 1.2,
+            }}
+          >
+            Style
+            <Box
+              component="span"
+              sx={{
+                fontFamily: "Inter, sans-serif",
+                fontWeight: 500,
+                fontSize: { xs: "14px", sm: "16px" },
+                lineHeight: "20px",
+                color: "#FF1572",
+                ml: 0.4,
+              }}
+            >
+              *
+            </Box>
+          </Typography>
+
+          <TextField
+            fullWidth
+            value={style}
+            onChange={(e) => setStyle(e.target.value)}
+            disabled={loading}
+            placeholder="e.g. Cinematic, Photorealistic"
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                height: { xs: "44px", sm: "48px" },
+                borderRadius: "12px",
+                bgcolor: "#FFFFFF",
+                fontSize: { xs: "13px", sm: "14px" },
+                fontFamily: "Inter, sans-serif",
+                color: "#333333",
+                "& fieldset": {
+                  borderColor: "#B3B3B3",
+                  borderWidth: "1px",
+                },
+                "&:hover fieldset": {
+                  borderColor: "#888888",
+                },
+                "&.Mui-focused fieldset": {
+                  borderColor: "#FF1572",
+                  borderWidth: "1.5px",
+                },
               },
               "& .MuiInputBase-input::placeholder": {
                 color: "#9CA3AF",
@@ -231,7 +350,7 @@ const CreateAiImage = () => {
               return (
                 <Box
                   key={item.id}
-                  onClick={() => setSelectedResolution(item.id)}
+                  onClick={() => !loading && setSelectedResolution(item.id)}
                   sx={{
                     bgcolor: isSelected ? "#FF1572" : "#EBECEF",
                     color: isSelected ? "#FFFFFF" : "#000000",
@@ -239,7 +358,7 @@ const CreateAiImage = () => {
                     py: { xs: 1.1, sm: 1.3 },
                     px: { xs: 1, sm: 2 },
                     textAlign: "center",
-                    cursor: "pointer",
+                    cursor: loading ? "default" : "pointer",
                     userSelect: "none",
                     transition: "all 0.2s ease-in-out",
                     fontFamily: "Inter, sans-serif",
@@ -250,7 +369,7 @@ const CreateAiImage = () => {
                     whiteSpace: "nowrap",
                     "&:hover": {
                       bgcolor: isSelected ? "#FF1572" : "#DFE1E6",
-                      transform: "translateY(-1px)",
+                      transform: loading ? "none" : "translateY(-1px)",
                     },
                   }}
                 >
@@ -305,7 +424,7 @@ const CreateAiImage = () => {
               return (
                 <Box
                   key={item.id}
-                  onClick={() => setSelectedAspectRatio(item.id)}
+                  onClick={() => !loading && setSelectedAspectRatio(item.id)}
                   sx={{
                     bgcolor: isSelected ? "#FF1572" : "#EBECEF",
                     color: isSelected ? "#FFFFFF" : "#000000",
@@ -313,7 +432,7 @@ const CreateAiImage = () => {
                     py: { xs: 1.1, sm: 1.3 },
                     px: { xs: 0.5, sm: 2 },
                     textAlign: "center",
-                    cursor: "pointer",
+                    cursor: loading ? "default" : "pointer",
                     userSelect: "none",
                     transition: "all 0.2s ease-in-out",
                     fontFamily: "Inter, sans-serif",
@@ -324,7 +443,7 @@ const CreateAiImage = () => {
                     whiteSpace: "nowrap",
                     "&:hover": {
                       bgcolor: isSelected ? "#FF1572" : "#DFE1E6",
-                      transform: "translateY(-1px)",
+                      transform: loading ? "none" : "translateY(-1px)",
                     },
                   }}
                 >
@@ -346,13 +465,18 @@ const CreateAiImage = () => {
           <Button
             variant="contained"
             onClick={handleContinue}
+            disabled={loading}
             endIcon={
-              <Box
-                component="img"
-                src={arrowIcon}
-                alt="Continue"
-                sx={{ width: 16, height: 16, objectFit: "contain" }}
-              />
+              loading ? (
+                <CircularProgress size={16} sx={{ color: "#FFFFFF" }} />
+              ) : (
+                <Box
+                  component="img"
+                  src={arrowIcon}
+                  alt="Continue"
+                  sx={{ width: 16, height: 16, objectFit: "contain" }}
+                />
+              )
             }
             sx={{
               bgcolor: "#FF1572",
@@ -371,12 +495,12 @@ const CreateAiImage = () => {
               "&:hover": {
                 bgcolor: "#FF1572",
                 boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
-                transform: "translateY(-1px)",
+                transform: loading ? "none" : "translateY(-1px)",
               },
               transition: "all 0.2s ease-in-out",
             }}
           >
-            Continue Script
+            {loading ? "Refining Prompt..." : "Continue Script"}
           </Button>
         </Box>
       </Container>
