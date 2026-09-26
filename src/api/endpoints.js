@@ -194,3 +194,7 @@ export const LIVE_STREAM_ENDPOINTS = {
 export const S3_ENDPOINTS = {
   UPLOAD: "upload/presigned-url",
 };
+
+export const AI_CONTENT_ENDPOINTS = {
+  CREDIT_PRICING: "credits/pricing",
+};
