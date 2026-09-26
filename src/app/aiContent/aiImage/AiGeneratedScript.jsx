@@ -19,18 +19,19 @@ import {
 import { refineAiPrompt } from "../../../api/aiContent/prompts";
 import { createAiGeneration } from "../../../api/aiContent/generations";
 
-const defaultScript = `Okay, I have been sleeping on this and I cannot believe I waited so long to try it.
-This HydroGlow Serum has completely changed my morning routine. The hyaluronic acid complex actually penetrates — you can feel it — and within two weeks my skin looked more plump and hydrated than it has in years. It's fragrance-free, absorbs instantly, and works under makeup without pilling. Link in bio.
-They have a starter kit right now that's honestly a steal. Your skin will thank you.`;
-
 const AiGeneratedScript = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const creationData = location.state || {};
 
-  const [scriptText, setScriptText] = useState(
-    creationData.refinedPrompt || creationData.prompt || defaultScript
-  );
+  // Always use the user's prompt or refined prompt (never fall back to unrelated hardcoded script)
+  const initialPrompt =
+    creationData.refinedPrompt ||
+    creationData.prompt ||
+    creationData.originalPrompt ||
+    "A stunning high-resolution cinematic portrait with professional studio lighting, realistic textures, and vibrant depth.";
+
+  const [scriptText, setScriptText] = useState(initialPrompt);
   const [isEditing, setIsEditing] = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
   const [generateLoading, setGenerateLoading] = useState(false);
@@ -64,7 +65,8 @@ const AiGeneratedScript = () => {
       const resBody = response?.data;
 
       if (resBody?.status === "success" && resBody?.data) {
-        const newRefined = resBody.data.refinedPrompt || resBody.data.originalPrompt;
+        const newRefined =
+          resBody.data.refinedPrompt || resBody.data.originalPrompt || rawPrompt;
         setScriptText(newRefined);
         setIsEditing(false);
         toast.success(resBody.message || "Script regenerated successfully!");

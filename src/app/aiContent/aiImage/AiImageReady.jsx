@@ -17,6 +17,10 @@ import {
   sampleAirplaneVideoThumb,
 } from "../../../assets/aiAssets";
 import { getAiGenerationStatus } from "../../../api/aiContent/generations";
+import {
+  subscribeToAiGeneration,
+  extractAiMediaUrl,
+} from "../../../api/aiContent/aiSocket";
 
 const DEFAULT_SAMPLE_IMAGE = sampleAirplaneVideoThumb;
 
@@ -36,6 +40,42 @@ const AiImageReady = () => {
   const [statusMessage, setStatusMessage] = useState(
     creationData.message || "Your image is being created by AI. Please check back shortly."
   );
+
+  // Subscribe to real-time AI socket events (ai:generation_progress, ai:generation_completed, ai:generation_failed)
+  useEffect(() => {
+    if (!creationData.generationId || imageUrl) return;
+
+    const unsubscribe = subscribeToAiGeneration(creationData.generationId, {
+      onProgress: (payload) => {
+        const data = payload?.data || payload;
+        if (data?.status) setGenerationStatus(data.status);
+        if (data?.progress !== undefined) setProgress(data.progress);
+        if (data?.message) setStatusMessage(data.message);
+      },
+      onCompleted: (payload) => {
+        const data = payload?.data || payload;
+        const foundUrl = extractAiMediaUrl(payload);
+
+        if (foundUrl) {
+          setImageUrl(foundUrl);
+        }
+        setGenerationStatus("completed");
+        setProgress(100);
+        toast.success(data?.message || payload?.message || "Your AI image is ready!");
+      },
+      onFailed: (payload) => {
+        const data = payload?.data || payload;
+        setGenerationStatus("failed");
+        toast.error(
+          data?.message || payload?.message || "Image generation failed. Please try again."
+        );
+      },
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [creationData.generationId, imageUrl]);
 
   // Poll GET /ai/generations/:generationId
   useEffect(() => {
@@ -57,13 +97,7 @@ const AiImageReady = () => {
         if (data.message) setStatusMessage(data.message);
 
         // API returns mediaUrl on completion
-        const foundUrl =
-          data.mediaUrl ||
-          data.imageUrl ||
-          data.outputUrl ||
-          data.url ||
-          data.resultUrl ||
-          data.image;
+        const foundUrl = extractAiMediaUrl(resBody) || data.mediaUrl || data.imageUrl;
 
         if (data.status === "completed" || foundUrl) {
           if (foundUrl) {
