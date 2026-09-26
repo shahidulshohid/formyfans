@@ -34,6 +34,8 @@ import {
   purchaseAiCredits,
 } from "../../api/aiContent";
 import { isStripeKeyConfigured, stripePromise } from "../../config/stripe";
+import useUserStore from "../../zustand/userUserStore";
+
 
 const defaultFeatures = [
   "AI Video Generation",
@@ -524,6 +526,18 @@ const AiSubscriptionModal = ({
   };
 
   const handlePaymentSuccess = (paymentResult) => {
+    const purchasedCredits = Number(paymentResult?.credits || creditAmount || 0);
+
+    const setUserData = useUserStore.getState().setUserData;
+    if (setUserData) {
+      setUserData((prev) => ({
+        ...prev,
+        credits: (prev?.credits || 0) + purchasedCredits,
+        aiCredits: (prev?.aiCredits || 0) + purchasedCredits,
+        hasAiSubscription: true,
+      }));
+    }
+
     if (onSubscribe) {
       onSubscribe({
         creditAmount: paymentResult.credits,
@@ -669,7 +683,7 @@ const AiSubscriptionModal = ({
                   fontWeight: 500,
                 }}
               >
-                (${pricePerCredit} / credit)
+                (${Number(pricePerCredit || 0).toFixed(2)} / credit)
               </Typography>
               {calculating && (
                 <CircularProgress size={14} sx={{ color: "#FF1572", ml: 0.5 }} />
@@ -784,7 +798,8 @@ const AiSubscriptionModal = ({
                     },
                   }}
                 >
-                  <input
+                  <Box
+                    component="input"
                     type="number"
                     value={creditAmount}
                     onChange={handleCreditChange}
@@ -792,16 +807,23 @@ const AiSubscriptionModal = ({
                     min={minCredits}
                     max={maxCredits}
                     disabled={purchaseLoading}
-                    style={{
+                    sx={{
                       border: "none",
                       outline: "none",
                       background: "transparent",
                       textAlign: "center",
-                      fontWeight: 600,
-                      fontSize: "15px",
-                      color: "#555555",
+                      fontWeight: 700,
+                      fontSize: "16px",
+                      color: "#111827",
                       width: "100%",
                       fontFamily: "inherit",
+                      "&::-webkit-outer-spin-button, &::-webkit-inner-spin-button": {
+                        WebkitAppearance: "none",
+                        margin: 0,
+                      },
+                      "&[type=number]": {
+                        MozAppearance: "textfield",
+                      },
                     }}
                   />
                 </Box>

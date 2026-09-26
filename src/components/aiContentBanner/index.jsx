@@ -5,21 +5,31 @@ import { Box, Button, Typography } from "@mui/material";
 import AiSubscriptionModal from "./AiSubscriptionModal";
 import SelectAiContentTypeModal from "./SelectAiContentTypeModal";
 
+import useUserStore from "../../zustand/userUserStore";
+
 const AiContentBanner = () => {
   const navigate = useNavigate();
+  const { user } = useUserStore();
   const [openSubscriptionModal, setOpenSubscriptionModal] = useState(false);
   const [openContentTypeModal, setOpenContentTypeModal] = useState(false);
   const [subscriptionsTrue, setSubscriptionsTrue] = useState(false);
-  // const subscriptions = true;
-  const subscriptions = subscriptionsTrue;
+
+  const hasAccess = Boolean(
+    subscriptionsTrue ||
+    user?.hasAiSubscription ||
+    user?.aiSubscription ||
+    (user?.credits && user.credits > 0) ||
+    (user?.aiCredits && user.aiCredits > 0)
+  );
 
   const handleCreateClick = () => {
-    if (!subscriptions) {
+    if (!hasAccess) {
       setOpenSubscriptionModal(true);
     } else {
       setOpenContentTypeModal(true);
     }
   };
+
 
   const handleContentTypeSelect = (item) => {
     if (item.id === "image") {
