@@ -1,12 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
+  CircularProgress,
   Container,
   Typography,
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { toast } from "react-toastify";
 import CreatePostPublishModal from "../../../components/aiContentBanner/CreatePostPublishModal";
 import Header from "../../../components/header";
 import {
@@ -14,6 +16,7 @@ import {
   publishIcon,
   sampleAirplaneVideoThumb,
 } from "../../../assets/aiAssets";
+import { getAiGenerationStatus } from "../../../api/aiContent/generations";
 
 const DEFAULT_SAMPLE_IMAGE = sampleAirplaneVideoThumb;
 
@@ -23,20 +26,104 @@ const AiImageReady = () => {
   const creationData = location.state || {};
 
   const [openPublishModal, setOpenPublishModal] = useState(false);
+  const [imageUrl, setImageUrl] = useState(
+    creationData.mediaUrl || creationData.imageUrl || null
+  );
+  const [generationStatus, setGenerationStatus] = useState(
+    creationData.status || (creationData.generationId ? "processing" : "completed")
+  );
+  const [progress, setProgress] = useState(creationData.progress || 5);
+  const [statusMessage, setStatusMessage] = useState(
+    creationData.message || "Your image is being created by AI. Please check back shortly."
+  );
 
-  const currentImage = creationData.imageUrl || DEFAULT_SAMPLE_IMAGE;
+  // Poll GET /ai/generations/:generationId
+  useEffect(() => {
+    if (!creationData.generationId || imageUrl) return;
+
+    let intervalId = null;
+    let isMounted = true;
+
+    const checkStatus = async () => {
+      try {
+        const res = await getAiGenerationStatus(creationData.generationId);
+        const resBody = res?.data;
+        const data = resBody?.data || resBody;
+
+        if (!isMounted || !data) return;
+
+        if (data.status) setGenerationStatus(data.status);
+        if (data.progress !== undefined) setProgress(data.progress);
+        if (data.message) setStatusMessage(data.message);
+
+        // API returns mediaUrl on completion
+        const foundUrl =
+          data.mediaUrl ||
+          data.imageUrl ||
+          data.outputUrl ||
+          data.url ||
+          data.resultUrl ||
+          data.image;
+
+        if (data.status === "completed" || foundUrl) {
+          if (foundUrl) {
+            setImageUrl(foundUrl);
+          }
+          setGenerationStatus("completed");
+          setProgress(100);
+          toast.success(resBody?.message || data.message || "Your AI image is ready!");
+          if (intervalId) clearInterval(intervalId);
+        } else if (data.status === "failed" || data.status === "error") {
+          setGenerationStatus("failed");
+          toast.error(data.message || "Image generation failed. Please try again.");
+          if (intervalId) clearInterval(intervalId);
+        }
+      } catch (err) {
+        console.error("Error polling generation status:", err);
+      }
+    };
+
+    // Check immediately and poll every 3 seconds
+    checkStatus();
+    intervalId = setInterval(checkStatus, 3000);
+
+    return () => {
+      isMounted = false;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [creationData.generationId, imageUrl]);
+
+  const isProcessing = !imageUrl && generationStatus === "processing";
+  const currentImage = imageUrl || DEFAULT_SAMPLE_IMAGE;
 
   const handleBack = () => {
     navigate(-1);
   };
 
-  const handleDownload = () => {
-    const link = document.createElement("a");
-    link.href = currentImage;
-    link.download = "ai-generated-image.jpg";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async () => {
+    if (!currentImage) return;
+
+    try {
+      const response = await fetch(currentImage);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `ai-image-${creationData.generationId || Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      // Direct download fallback
+      const link = document.createElement("a");
+      link.href = currentImage;
+      link.target = "_blank";
+      link.download = `ai-image-${creationData.generationId || Date.now()}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const handlePublishAndPost = () => {
@@ -97,7 +184,7 @@ const AiImageReady = () => {
             mb: 0.6,
           }}
         >
-          Your AI Image is Ready
+          {isProcessing ? "Your AI Image is Being Generated..." : "Your AI Image is Ready"}
         </Typography>
 
         <Typography
@@ -109,7 +196,9 @@ const AiImageReady = () => {
             mb: { xs: 3, sm: 3.5 },
           }}
         >
-          Review your generated content before publishing or downloading.
+          {isProcessing
+            ? "Please wait a moment while AI processes and brings your visual to life."
+            : "Review your generated content before publishing or downloading."}
         </Typography>
 
         {/* Image Preview Box */}
@@ -135,21 +224,57 @@ const AiImageReady = () => {
               bgcolor: "#F9FAFB",
               aspectRatio: "16 / 9",
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
+              p: isProcessing ? 3 : 0,
             }}
           >
-            <Box
-              component="img"
-              src={currentImage}
-              alt="AI Generated"
-              sx={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                display: "block",
-              }}
-            />
+            {isProcessing ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 2,
+                }}
+              >
+                <CircularProgress size={44} sx={{ color: "#FF1572" }} />
+                <Typography
+                  sx={{
+                    fontFamily: "Inter, sans-serif",
+                    fontWeight: 500,
+                    fontSize: "14px",
+                    color: "#555555",
+                  }}
+                >
+                  Generating image... {progress ? `(${progress}%)` : ""}
+                </Typography>
+                <Typography
+                  sx={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: "12px",
+                    color: "#9CA3AF",
+                    textAlign: "center",
+                  }}
+                >
+                  {statusMessage || "Your image is being created by AI. Please hold on."}
+                </Typography>
+              </Box>
+            ) : (
+              <Box
+                component="img"
+                src={currentImage}
+                alt="AI Generated"
+                sx={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  display: "block",
+                }}
+              />
+            )}
           </Box>
 
           {/* Action Buttons */}

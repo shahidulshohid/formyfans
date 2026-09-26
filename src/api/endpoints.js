@@ -199,5 +199,9 @@ export const AI_CONTENT_ENDPOINTS = {
   CREDIT_PRICING: "credits/pricing",
   CALCULATE_PRICE: "credits/calculate-price",
   PURCHASE_CREDITS: "credits/purchase",
+  REFINE_PROMPT: "ai/prompts/refine",
+  GENERATIONS: "ai/generations",
+  GET_GENERATION: "ai/generations/:id",
 };
+
 

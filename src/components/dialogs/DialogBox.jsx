@@ -3,7 +3,6 @@ import { styled } from "@mui/material/styles";
 
 const BootstrapDialog = styled(Dialog)(({ theme, fullWidth, maxWidth }) => ({
   "& .MuiDialog-paper": {
-    width: "600px",
     maxWidth: maxWidth || "600px",
     width: fullWidth ? "100%" : "600px",
     borderRadius: "25px",
