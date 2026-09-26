@@ -14,13 +14,14 @@ const AiContentBanner = () => {
   const [openContentTypeModal, setOpenContentTypeModal] = useState(false);
   const [subscriptionsTrue, setSubscriptionsTrue] = useState(false);
 
-  const hasAccess = Boolean(
-    subscriptionsTrue ||
-    user?.hasAiSubscription ||
-    user?.aiSubscription ||
-    (user?.credits && user.credits > 0) ||
-    (user?.aiCredits && user.aiCredits > 0)
-  );
+  // const hasAccess = Boolean(
+  //   subscriptionsTrue ||
+  //   user?.hasAiSubscription ||
+  //   user?.aiSubscription ||
+  //   (user?.credits && user.credits > 0) ||
+  //   (user?.aiCredits && user.aiCredits > 0)
+  // );
+  const hasAccess = true // pre ata remove korte hobe
 
   const handleCreateClick = () => {
     if (!hasAccess) {
