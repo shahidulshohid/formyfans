@@ -202,6 +202,7 @@ export const AI_CONTENT_ENDPOINTS = {
   REFINE_PROMPT: "ai/prompts/refine",
   GENERATIONS: "ai/generations",
   GET_GENERATION: "ai/generations/:id",
+  PRESIGN_UPLOAD: "ai/uploads/presign",
 };
 
 

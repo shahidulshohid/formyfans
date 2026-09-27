@@ -148,24 +148,31 @@ export const extractAiMediaUrl = (payload) => {
   return (
     obj?.mediaUrl ||
     obj?.media_url ||
+    obj?.videoUrl ||
+    obj?.video_url ||
     obj?.imageUrl ||
     obj?.image_url ||
     obj?.outputUrl ||
     obj?.output_url ||
     obj?.resultUrl ||
     obj?.result_url ||
+    obj?.s3Url ||
     obj?.url ||
     obj?.image ||
+    obj?.video ||
     obj?.media ||
     obj?.fileUrl ||
     obj?.downloadUrl ||
     obj?.data?.mediaUrl ||
     obj?.data?.media_url ||
+    obj?.data?.videoUrl ||
+    obj?.data?.video_url ||
     obj?.data?.imageUrl ||
     obj?.data?.outputUrl ||
     obj?.data?.url ||
     obj?.data?.resultUrl ||
     payload?.mediaUrl ||
+    payload?.videoUrl ||
     payload?.imageUrl ||
     payload?.outputUrl ||
     payload?.url ||

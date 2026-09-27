@@ -1,15 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Button,
+  CircularProgress,
   Container,
-  IconButton,
   Typography,
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
-import PauseRoundedIcon from "@mui/icons-material/PauseRounded";
+import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
+import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import CreatePostPublishModal from "../../../components/aiContentBanner/CreatePostPublishModal";
 import Header from "../../../components/header";
 import { toast } from "react-toastify";
@@ -18,46 +19,244 @@ import {
   publishIcon,
   sampleAirplaneVideoThumb,
 } from "../../../assets/aiAssets";
+import {
+  getAiGenerationStatus,
+  createAiGeneration,
+} from "../../../api/aiContent/generations";
+import {
+  subscribeToAiGeneration,
+  extractAiMediaUrl,
+} from "../../../api/aiContent/aiSocket";
 import { downloadMedia } from "../../../api/aiContent/downloadMedia";
 
-const DEFAULT_SAMPLE_AIRPLANE_THUMB = sampleAirplaneVideoThumb;
+const DEFAULT_SAMPLE_VIDEO_THUMB = sampleAirplaneVideoThumb;
 
 const AiVideoEditReady = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const creationData = location.state || {};
 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [openPublishModal, setOpenPublishModal] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+  const playerContainerRef = useRef(null);
+  const videoRef = useRef(null);
 
-  const currentMedia = creationData.videoUrl || creationData.imageUrl || DEFAULT_SAMPLE_AIRPLANE_THUMB;
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [openPublishModal, setOpenPublishModal] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const [videoUrl, setVideoUrl] = useState(
+    creationData.mediaUrl || creationData.videoUrl || null
+  );
+  const [generationStatus, setGenerationStatus] = useState(
+    creationData.status || (creationData.generationId ? "processing" : "completed")
+  );
+  const [progress, setProgress] = useState(creationData.progress || 5);
+  const [statusMessage, setStatusMessage] = useState(
+    creationData.message ||
+      "Your edited video is being created by AI. Please check back shortly."
+  );
+
+  // Subscribe to real-time AI socket events
+  useEffect(() => {
+    if (!creationData.generationId || videoUrl) return;
+
+    const unsubscribe = subscribeToAiGeneration(creationData.generationId, {
+      onProgress: (payload) => {
+        const data = payload?.data || payload;
+        if (data?.status) setGenerationStatus(data.status);
+        if (data?.progress !== undefined) setProgress(data.progress);
+        if (data?.message) setStatusMessage(data.message);
+      },
+      onCompleted: (payload) => {
+        const data = payload?.data || payload;
+        const foundUrl = extractAiMediaUrl(payload);
+
+        if (foundUrl) {
+          setVideoUrl(foundUrl);
+          setGenerationStatus("completed");
+          setProgress(100);
+          toast.success(data?.message || "Your AI edited video is ready!");
+        } else {
+          setGenerationStatus("completed");
+          setProgress(100);
+        }
+      },
+      onError: (err) => {
+        setGenerationStatus("failed");
+        const errMsg = err?.message || "Video edit generation failed or timed out.";
+        setStatusMessage(errMsg);
+        toast.error(errMsg);
+      },
+    });
+
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
+  }, [creationData.generationId, videoUrl]);
+
+  // Poll GET /ai/generations/:generationId fallback
+  useEffect(() => {
+    if (!creationData.generationId || videoUrl || generationStatus === "failed") return;
+
+    let intervalId = null;
+    let isMounted = true;
+
+    const checkStatus = async () => {
+      try {
+        const res = await getAiGenerationStatus(creationData.generationId);
+        const resBody = res?.data;
+        const data = resBody?.data || resBody;
+
+        if (!isMounted || !data) return;
+
+        if (data.status) setGenerationStatus(data.status);
+        if (data.progress !== undefined) setProgress(data.progress);
+        if (data.message) setStatusMessage(data.message);
+
+        const foundUrl =
+          extractAiMediaUrl(resBody) || data.mediaUrl || data.videoUrl || data.outputUrl;
+
+        if (foundUrl) {
+          setVideoUrl(foundUrl);
+          setGenerationStatus("completed");
+          setProgress(100);
+          toast.success(
+            resBody?.message || data.message || "Your AI edited video is ready!"
+          );
+          if (intervalId) clearInterval(intervalId);
+        } else if (data.status === "completed") {
+          setGenerationStatus("completed");
+          setProgress(100);
+          if (intervalId) clearInterval(intervalId);
+        } else if (data.status === "failed" || data.status === "error") {
+          setGenerationStatus("failed");
+          const errMsg = data.message || "Video edit generation failed or timed out.";
+          setStatusMessage(errMsg);
+          toast.error(errMsg);
+          if (intervalId) clearInterval(intervalId);
+        }
+      } catch (err) {
+        console.error("Error polling video edit generation status:", err);
+      }
+    };
+
+    checkStatus();
+    intervalId = setInterval(checkStatus, 3000);
+
+    return () => {
+      isMounted = false;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [creationData.generationId, videoUrl, generationStatus]);
+
+  // Handle Fullscreen state changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  const isFailed = generationStatus === "failed" || generationStatus === "error";
+  const isProcessing = !videoUrl && !isFailed && generationStatus === "processing";
+  const currentMedia = videoUrl || (isFailed ? null : DEFAULT_SAMPLE_VIDEO_THUMB);
+
+  const isDirectVideo =
+    Boolean(videoUrl) ||
+    (typeof currentMedia === "string" &&
+      !currentMedia.endsWith(".jpg") &&
+      !currentMedia.endsWith(".jpeg") &&
+      !currentMedia.endsWith(".png") &&
+      !currentMedia.endsWith(".webp") &&
+      (currentMedia.endsWith(".mp4") ||
+        currentMedia.endsWith(".webm") ||
+        currentMedia.endsWith(".mov") ||
+        currentMedia.startsWith("blob:") ||
+        currentMedia.startsWith("data:video")));
 
   const handleBack = () => {
     navigate(-1);
   };
 
-  const handleTogglePlay = () => {
-    setIsPlaying((prev) => !prev);
+  // Retry generation handler
+  const handleRetryGeneration = async () => {
+    try {
+      setIsRetrying(true);
+      setGenerationStatus("processing");
+      setProgress(5);
+      setStatusMessage("Starting AI video edit retry...");
+
+      const payload = {
+        type: "VIDEO_EDIT",
+        prompt: creationData.prompt || creationData.originalPrompt,
+        videoModificationPrompt: creationData.videoModificationPrompt,
+        videoReference: creationData.videoReference || creationData.videoReferenceKey,
+        imageReference: creationData.imageReference || creationData.imageReferenceKey,
+        audio: creationData.audio !== undefined ? Boolean(creationData.audio) : true,
+      };
+
+      const response = await createAiGeneration(payload);
+      const resBody = response?.data;
+
+      if (resBody?.status === "success" && resBody?.data) {
+        const genData = resBody.data;
+        creationData.generationId = genData.generationId;
+        creationData.contentId = genData.contentId;
+        toast.success(resBody.message || "AI video edit generation restarted.");
+      } else {
+        setGenerationStatus("failed");
+        toast.error(resBody?.message || "Retry failed. Please try again.");
+      }
+    } catch (err) {
+      setGenerationStatus("failed");
+      const errMsg = err?.response?.data?.message || err?.message || "Failed to retry generation.";
+      toast.error(errMsg);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  const handleEditScript = () => {
+    navigate("/ai-video-edit-generated-script", {
+      state: creationData,
+    });
   };
 
   const handleDownload = async () => {
     if (!currentMedia) {
-      toast.error("No video/image available to download.");
+      toast.error("No video available to download.");
       return;
     }
 
-    setDownloading(true);
-    const fileName = `ai-edited-video-${creationData.generationId || Date.now()}.jpg`;
-
     try {
-      await downloadMedia(currentMedia, fileName);
-      toast.success("Media downloaded to your Downloads folder!");
+      setIsDownloading(true);
+      const isVid = Boolean(
+        videoUrl ||
+          isDirectVideo ||
+          (typeof currentMedia === "string" &&
+            (currentMedia.includes(".mp4") ||
+              currentMedia.includes(".webm") ||
+              currentMedia.includes("video")))
+      );
+      const ext = isVid ? "mp4" : "jpg";
+      const fileName = `formyfans-edited-video-${
+        creationData.generationId || Date.now()
+      }.${ext}`;
+
+      const success = await downloadMedia(currentMedia, fileName);
+      if (success) {
+        toast.success("Download started!");
+      }
     } catch (err) {
       console.error("Download error:", err);
-      toast.error("Failed to download media. Please try again.");
+      toast.error("Failed to download video. Please try again.");
     } finally {
-      setDownloading(false);
+      setIsDownloading(false);
     }
   };
 
@@ -71,7 +270,7 @@ const AiVideoEditReady = () => {
       <Container
         maxWidth={false}
         sx={{
-          maxWidth: "880px",
+          maxWidth: "920px",
           px: { xs: 2.5, sm: 4 },
           pt: { xs: 3, sm: 5, md: 6 },
         }}
@@ -112,14 +311,18 @@ const AiVideoEditReady = () => {
           sx={{
             fontFamily: "Inter, sans-serif",
             fontWeight: 600,
-            color: "#FF1572",
+            color: isFailed ? "#DC2626" : "#FF1572",
             fontSize: { xs: "22px", sm: "26px", md: "28px" },
             lineHeight: "36px",
             letterSpacing: "-1px",
             mb: 0.6,
           }}
         >
-          Your Video is Ready
+          {isFailed
+            ? "Video Generation Timed Out"
+            : isProcessing
+            ? "Your AI Edited Video is Being Generated..."
+            : "Your Video is Ready"}
         </Typography>
 
         <Typography
@@ -131,10 +334,14 @@ const AiVideoEditReady = () => {
             mb: { xs: 3, sm: 4 },
           }}
         >
-          Your AI-generated image is ready to preview. Review it, make changes, or generate a new version.
+          {isFailed
+            ? "The AI video engine encountered a timeout or issue while generating the video. You can retry or edit your prompt."
+            : isProcessing
+            ? "Please wait a moment while AI processes, blends, and renders your edited video."
+            : "Your AI-edited video is ready. Preview it with full audio and native video controls, or download it directly."}
         </Typography>
 
-        {/* Central Video Preview Card Container */}
+        {/* Central Card Container */}
         <Box
           sx={{
             display: "flex",
@@ -145,220 +352,291 @@ const AiVideoEditReady = () => {
             mt: { xs: 1, sm: 2 },
           }}
         >
-          {/* Video Preview Card */}
+          {/* Card Box */}
           <Box
+            ref={playerContainerRef}
             sx={{
-              width: { xs: "100%", sm: "355px" },
-              maxWidth: "355px",
-              height: { xs: "460px", sm: "497px" },
-              borderRadius: "16px",
+              width: { xs: "100%", sm: "420px", md: "520px" },
+              maxWidth: "520px",
+              aspectRatio: isFullscreen ? "auto" : "16 / 9",
+              minHeight: { xs: "280px", sm: "320px", md: "360px" },
+              borderRadius: isFullscreen ? "0px" : "16px",
               overflow: "hidden",
-              boxShadow: "0px 8px 32px rgba(0, 0, 0, 0.12)",
-              bgcolor: "#000000",
-              border: "1px solid rgba(255, 255, 255, 0.07)",
+              boxShadow: "0px 8px 30px rgba(0, 0, 0, 0.15)",
+              bgcolor: isFailed ? "#1E1E1E" : "#000000",
+              border: isFullscreen ? "none" : isFailed ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(255, 255, 255, 0.1)",
               position: "relative",
-              cursor: "pointer",
-              transition: "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
-              "&:hover": {
-                boxShadow: "0px 12px 40px rgba(0, 0, 0, 0.16)",
-              },
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
-            onClick={handleTogglePlay}
           >
-            {/* Background Media */}
-            <Box
-              component="img"
-              src={currentMedia}
-              alt="AI Video Preview"
-              sx={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                display: "block",
-              }}
-            />
+            {isFailed ? (
+              /* Failed / Timeout State Card */
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 2,
+                  p: 3,
+                  textAlign: "center",
+                }}
+              >
+                <ErrorOutlineRoundedIcon sx={{ fontSize: 56, color: "#EF4444" }} />
+                <Typography
+                  sx={{
+                    fontFamily: "Inter, sans-serif",
+                    fontWeight: 600,
+                    fontSize: "16px",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  AI Generation Did Not Complete
+                </Typography>
+                <Typography
+                  sx={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: "13px",
+                    color: "rgba(255, 255, 255, 0.75)",
+                    lineHeight: 1.45,
+                    maxWidth: "400px",
+                  }}
+                >
+                  {statusMessage ||
+                    "The video edit worker timed out after processing. Please retry generation or adjust your input prompt."}
+                </Typography>
 
-            {/* Central Play / Pause Button */}
+                <Box sx={{ display: "flex", gap: 1.5, mt: 1 }}>
+                  <Button
+                    variant="contained"
+                    onClick={handleRetryGeneration}
+                    disabled={isRetrying}
+                    startIcon={
+                      isRetrying ? (
+                        <CircularProgress size={16} sx={{ color: "#FFFFFF" }} />
+                      ) : (
+                        <ReplayRoundedIcon sx={{ fontSize: 18 }} />
+                      )
+                    }
+                    sx={{
+                      bgcolor: "#FF1572",
+                      color: "#FFFFFF",
+                      borderRadius: "30px",
+                      textTransform: "none",
+                      fontWeight: 600,
+                      px: 2.5,
+                      "&:hover": { bgcolor: "#E00E63" },
+                    }}
+                  >
+                    {isRetrying ? "Retrying..." : "Retry Generation"}
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    onClick={handleEditScript}
+                    startIcon={<EditRoundedIcon sx={{ fontSize: 18 }} />}
+                    sx={{
+                      borderColor: "rgba(255, 255, 255, 0.4)",
+                      color: "#FFFFFF",
+                      borderRadius: "30px",
+                      textTransform: "none",
+                      fontWeight: 500,
+                      px: 2,
+                      "&:hover": {
+                        borderColor: "#FFFFFF",
+                        bgcolor: "rgba(255, 255, 255, 0.1)",
+                      },
+                    }}
+                  >
+                    Edit Prompt
+                  </Button>
+                </Box>
+              </Box>
+            ) : isProcessing ? (
+              /* Processing State Card */
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 2,
+                  p: 3,
+                  textAlign: "center",
+                }}
+              >
+                <CircularProgress size={52} sx={{ color: "#FF1572" }} />
+                <Typography
+                  sx={{
+                    fontFamily: "Inter, sans-serif",
+                    fontWeight: 600,
+                    fontSize: "15px",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  Generating edited video... {progress ? `(${progress}%)` : ""}
+                </Typography>
+                <Typography
+                  sx={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: "12px",
+                    color: "rgba(255, 255, 255, 0.7)",
+                    lineHeight: 1.4,
+                    maxWidth: "380px",
+                  }}
+                >
+                  {statusMessage ||
+                    "Your edited video is being created by AI. Please hold on."}
+                </Typography>
+              </Box>
+            ) : (
+              /* Ready State Video / Media */
+              <>
+                {isDirectVideo ? (
+                  <Box
+                    component="video"
+                    ref={videoRef}
+                    src={currentMedia}
+                    controls
+                    playsInline
+                    loop
+                    sx={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      bgcolor: "#000000",
+                      display: "block",
+                      borderRadius: isFullscreen ? "0px" : "16px",
+                    }}
+                  />
+                ) : (
+                  <Box
+                    component="img"
+                    src={currentMedia}
+                    alt="AI Video Preview"
+                    sx={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                      borderRadius: isFullscreen ? "0px" : "16px",
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </Box>
+
+          {/* Action Buttons: Download & Publish */}
+          {!isFailed && (
             <Box
               sx={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                zIndex: 2,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: { xs: 1.5, sm: 2 },
+                mt: { xs: 3, sm: 3.5 },
+                width: { xs: "100%", sm: "auto" },
+                flexWrap: { xs: "wrap", sm: "nowrap" },
               }}
             >
-              <IconButton
+              {/* Download Button */}
+              <Button
+                variant="outlined"
+                onClick={handleDownload}
+                disabled={isProcessing || isDownloading}
+                startIcon={
+                  isDownloading ? (
+                    <CircularProgress size={18} sx={{ color: "#FF1572" }} />
+                  ) : (
+                    <Box
+                      component="img"
+                      src={downloadIcon}
+                      alt="Download"
+                      sx={{ width: 18, height: 18, objectFit: "contain" }}
+                    />
+                  )
+                }
                 sx={{
-                  width: { xs: 46, sm: 54 },
-                  height: { xs: 46, sm: 54 },
-                  bgcolor: "rgba(0, 0, 0, 0.55)",
-                  color: "#FFFFFF",
-                  backdropFilter: "blur(4px)",
-                  boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+                  bgcolor: "#FFFFFF",
+                  color: "#FF1572",
+                  borderColor: "#FFD1E3",
+                  borderWidth: "1px",
+                  borderRadius: "53px",
+                  height: "44px",
+                  px: { xs: "20px", sm: "24px" },
+                  py: "10px",
+                  fontSize: { xs: "13px", sm: "14px" },
+                  fontWeight: 600,
+                  textTransform: "none",
+                  fontFamily: "Inter, sans-serif",
+                  boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.05)",
+                  whiteSpace: "nowrap",
+                  flex: { xs: 1, sm: "none" },
+                  minWidth: { xs: "130px", sm: "140px" },
                   "&:hover": {
-                    bgcolor: "rgba(0, 0, 0, 0.75)",
-                    transform: "scale(1.08)",
+                    borderColor: "#FF1572",
+                    bgcolor: "#FFF5F8",
+                    transform: isProcessing || isDownloading ? "none" : "translateY(-1px)",
+                  },
+                  "&.Mui-disabled": {
+                    color: "#9CA3AF",
+                    borderColor: "#E5E7EB",
+                    bgcolor: "#FAFAFA",
                   },
                   transition: "all 0.2s ease-in-out",
                 }}
               >
-                {isPlaying ? (
-                  <PauseRoundedIcon sx={{ fontSize: { xs: 26, sm: 32 } }} />
-                ) : (
-                  <PlayArrowRoundedIcon sx={{ fontSize: { xs: 28, sm: 34 }, ml: "3px" }} />
-                )}
-              </IconButton>
-            </Box>
+                {isDownloading ? "Downloading..." : "Download Video"}
+              </Button>
 
-            {/* Bottom Caption Overlay Banner */}
-            <Box
-              sx={{
-                position: "absolute",
-                bottom: 14,
-                left: 14,
-                right: 14,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 0.8,
-                zIndex: 2,
-              }}
-            >
-              <Box
+              {/* Publish & Post Button */}
+              <Button
+                variant="contained"
+                onClick={handlePublishAndPost}
+                disabled={isProcessing}
+                startIcon={
+                  <Box
+                    component="img"
+                    src={publishIcon}
+                    alt="Publish & Post"
+                    sx={{ width: 18, height: 18, objectFit: "contain" }}
+                  />
+                }
                 sx={{
-                  bgcolor: "rgba(20, 20, 20, 0.7)",
-                  backdropFilter: "blur(8px)",
-                  borderRadius: "16px",
-                  p: "10px 14px",
-                  width: "100%",
-                  boxSizing: "border-box",
-                  border: "1px solid rgba(255, 255, 255, 0.12)",
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontFamily: "Inter, sans-serif",
-                    fontSize: { xs: "9.5px", sm: "10.5px" },
-                    lineHeight: 1.35,
-                    fontWeight: 400,
-                    color: "rgba(255, 255, 255, 0.92)",
-                    textAlign: "center",
-                  }}
-                >
-                  A brand new window just swung open, letting in fresh hope, warm light, and endless possibilities. Breathe it in. This month invites you to see life differently, dream boldly, and step into joy like sunshine through glass.{" "}
-                  <Box component="span" sx={{ fontWeight: 700, color: "#FFFFFF" }}>
-                    Happy New Month
-                  </Box>
-                </Typography>
-              </Box>
-
-              {/* Sub-credit watermark */}
-              <Typography
-                sx={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: "9px",
-                  fontWeight: 500,
-                  color: "rgba(255, 255, 255, 0.6)",
-                  letterSpacing: "1px",
-                  textTransform: "uppercase",
-                }}
-              >
-                zozodesign
-              </Typography>
-            </Box>
-          </Box>
-
-          {/* Action Buttons: Download & Publish */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: { xs: 1.5, sm: 2 },
-              mt: { xs: 3, sm: 3.5 },
-              width: { xs: "100%", sm: "auto" },
-              flexWrap: { xs: "wrap", sm: "nowrap" },
-            }}
-          >
-            {/* Download Button */}
-            <Button
-              variant="outlined"
-              onClick={handleDownload}
-              startIcon={
-                <Box
-                  component="img"
-                  src={downloadIcon}
-                  alt="Download"
-                  sx={{ width: 18, height: 18, objectFit: "contain" }}
-                />
-              }
-              sx={{
-                bgcolor: "#FFFFFF",
-                color: "#FF1572",
-                borderColor: "#FFD1E3",
-                borderWidth: "1px",
-                borderRadius: "53px",
-                height: "44px",
-                px: { xs: "20px", sm: "24px" },
-                py: "10px",
-                fontSize: { xs: "13px", sm: "14px" },
-                fontWeight: 600,
-                textTransform: "none",
-                fontFamily: "Inter, sans-serif",
-                boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.05)",
-                whiteSpace: "nowrap",
-                flex: { xs: 1, sm: "none" },
-                minWidth: { xs: "130px", sm: "140px" },
-                "&:hover": {
-                  borderColor: "#FF1572",
-                  bgcolor: "#FFF5F8",
-                  transform: "translateY(-1px)",
-                },
-                transition: "all 0.2s ease-in-out",
-              }}
-            >
-              Download
-            </Button>
-
-            {/* Publish & Post Button */}
-            <Button
-              variant="contained"
-              onClick={handlePublishAndPost}
-              startIcon={
-                <Box
-                  component="img"
-                  src={publishIcon}
-                  alt="Publish & Post"
-                  sx={{ width: 18, height: 18, objectFit: "contain" }}
-                />
-              }
-              sx={{
-                bgcolor: "#FF1572",
-                color: "#FFFFFF",
-                borderRadius: "53px",
-                height: "44px",
-                px: { xs: "20px", sm: "24px" },
-                py: "10px",
-                fontSize: { xs: "13px", sm: "14px" },
-                fontWeight: 600,
-                textTransform: "none",
-                fontFamily: "Inter, sans-serif",
-                boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.25)",
-                whiteSpace: "nowrap",
-                flex: { xs: 1, sm: "none" },
-                minWidth: { xs: "140px", sm: "155px" },
-                "&:hover": {
                   bgcolor: "#FF1572",
-                  boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
-                  transform: "translateY(-1px)",
-                },
-                transition: "all 0.2s ease-in-out",
-              }}
-            >
-              Publish & Post
-            </Button>
-          </Box>
+                  color: "#FFFFFF",
+                  borderRadius: "53px",
+                  height: "44px",
+                  px: { xs: "20px", sm: "24px" },
+                  py: "10px",
+                  fontSize: { xs: "13px", sm: "14px" },
+                  fontWeight: 600,
+                  textTransform: "none",
+                  fontFamily: "Inter, sans-serif",
+                  boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.25)",
+                  whiteSpace: "nowrap",
+                  flex: { xs: 1, sm: "none" },
+                  minWidth: { xs: "140px", sm: "155px" },
+                  "&:hover": {
+                    bgcolor: "#FF1572",
+                    boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
+                    transform: isProcessing ? "none" : "translateY(-1px)",
+                  },
+                  "&.Mui-disabled": {
+                    bgcolor: "#E5E7EB",
+                    color: "#9CA3AF",
+                    boxShadow: "none",
+                  },
+                  transition: "all 0.2s ease-in-out",
+                }}
+              >
+                Publish & Post
+              </Button>
+            </Box>
+          )}
         </Box>
       </Container>
 
@@ -369,6 +647,7 @@ const AiVideoEditReady = () => {
         creationData={{
           ...creationData,
           mediaUrl: currentMedia,
+          videoUrl: currentMedia,
         }}
       />
     </Box>

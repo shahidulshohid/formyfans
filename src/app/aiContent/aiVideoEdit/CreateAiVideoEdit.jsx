@@ -1,23 +1,57 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Box,
   Button,
+  CircularProgress,
   Container,
+  IconButton,
+  LinearProgress,
   Switch,
   TextField,
   Typography,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CloseIcon from "@mui/icons-material/Close";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import { toast } from "react-toastify";
 import Header from "../../../components/header";
 import { arrowIcon, uploadIcon } from "../../../assets/aiAssets";
+import { uploadAiFileToS3 } from "../../../api/aiContent/uploads";
+import { connectAiSocket } from "../../../api/aiContent/aiSocket";
+
+export const DEFAULT_SUNDARBANS_PROMPT =
+  "A breathtaking aerial video showcasing a drone flyover of the Sundarbans mangrove forest in Bangladesh at sunrise. The scene captures the serene beauty of misty waterways winding through the lush, dense canopy. The camera glides smoothly, highlighting the vibrant greens of the mangroves and the soft golden hues of the sunrise filtering through the trees. Wildlife can be seen in the underbrush and waterways, adding life to the tranquil landscape. The composition emphasizes the vastness of the forest, with gentle motion to create a cinematic feel, all within a 720p resolution and a 16:9 aspect ratio, lasting 5 seconds.";
+
+export const DEFAULT_TIGER_MODIFICATION_PROMPT =
+  "Add a realistic Royal Bengal tiger from the provided image reference naturally into the existing Sundarbans scene. Preserve the tiger's distinctive orange coat, black stripes, facial features, body proportions, and overall appearance from the reference image. Place the tiger naturally within the mangrove vegetation near the misty waterways, making it feel like it was genuinely present in the original footage. Ensure realistic scale, perspective, lighting, shadows, reflections, depth, and interaction with the surrounding environment. Match the tiger with the warm golden sunrise lighting, tropical haze, lush green mangroves, and cinematic atmosphere of the existing video. Keep the original drone camera movement, composition, environment, duration, resolution, and overall visual style unchanged. The tiger should blend seamlessly into the footage without looking AI-generated, composited, or artificially inserted. The final result should resemble authentic cinematic wildlife footage of a Royal Bengal tiger in the Sundarbans.";
 
 const CreateAiVideoEdit = () => {
   const navigate = useNavigate();
+
+  // Connect AI socket as soon as user opens CreateAiVideoEdit form
+  useEffect(() => {
+    connectAiSocket();
+  }, []);
+
+  // Video Reference State
   const [videoFile, setVideoFile] = useState(null);
+  const [videoKey, setVideoKey] = useState("");
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [videoPreview, setVideoPreview] = useState(null);
+
+  // Image Reference State
   const [imageFile, setImageFile] = useState(null);
-  const [prompt, setPrompt] = useState("");
+  const [imageKey, setImageKey] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageProgress, setImageProgress] = useState(0);
+  const [imagePreview, setImagePreview] = useState(null);
+
+  // Prompt and Audio State
+  const [prompt, setPrompt] = useState(DEFAULT_SUNDARBANS_PROMPT);
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const videoInputRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -26,30 +60,145 @@ const CreateAiVideoEdit = () => {
     navigate(-1);
   };
 
-  const handleVideoUpload = (e) => {
+  // Video File Upload Handler
+  const handleVideoUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setVideoFile(file);
+    if (!file) return;
+
+    // Local preview & state reset
+    const previewUrl = URL.createObjectURL(file);
+    setVideoFile(file);
+    setVideoPreview(previewUrl);
+    setVideoKey("");
+    setVideoUploading(true);
+    setVideoProgress(0);
+
+    try {
+      const uploadRes = await uploadAiFileToS3(file, "videoReference", (pct) => {
+        setVideoProgress(pct);
+      });
+
+      if (uploadRes?.fileKey) {
+        setVideoKey(uploadRes.fileKey);
+        toast.success("Video reference uploaded successfully!");
+      }
+    } catch (err) {
+      console.error("Video reference upload error:", err);
+      const errMsg = err?.response?.data?.message || err?.message || "Failed to upload video reference.";
+      toast.error(errMsg);
+    } finally {
+      setVideoUploading(false);
     }
   };
 
-  const handleImageUpload = (e) => {
+  // Image File Upload Handler
+  const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
+    if (!file) return;
+
+    // Local preview & state reset
+    const previewUrl = URL.createObjectURL(file);
+    setImageFile(file);
+    setImagePreview(previewUrl);
+    setImageKey("");
+    setImageUploading(true);
+    setImageProgress(0);
+
+    try {
+      const uploadRes = await uploadAiFileToS3(file, "imageReference", (pct) => {
+        setImageProgress(pct);
+      });
+
+      if (uploadRes?.fileKey) {
+        setImageKey(uploadRes.fileKey);
+        toast.success("Image reference uploaded successfully!");
+      }
+    } catch (err) {
+      console.error("Image reference upload error:", err);
+      const errMsg = err?.response?.data?.message || err?.message || "Failed to upload image reference.";
+      toast.error(errMsg);
+    } finally {
+      setImageUploading(false);
     }
   };
 
-  const handleContinue = () => {
-    navigate("/ai-video-edit-generated-script", {
-      state: {
-        type: "video_edit",
-        videoFile: videoFile ? videoFile.name : null,
-        imageFile: imageFile ? imageFile.name : null,
-        prompt,
-        audio: audioEnabled,
-      },
-    });
+  const handleRemoveVideo = (e) => {
+    e.stopPropagation();
+    setVideoFile(null);
+    setVideoKey("");
+    setVideoPreview(null);
+    setVideoProgress(0);
+    if (videoInputRef.current) videoInputRef.current.value = "";
+  };
+
+  const handleRemoveImage = (e) => {
+    e.stopPropagation();
+    setImageFile(null);
+    setImageKey("");
+    setImagePreview(null);
+    setImageProgress(0);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  // Continue to Script Step
+  const handleContinue = async () => {
+    if (videoUploading || imageUploading) {
+      toast.info("Files are still uploading. Please wait a moment.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      let finalVideoKey = videoKey;
+      let finalImageKey = imageKey;
+
+      // If video file was selected but not uploaded yet, upload now
+      if (videoFile && !finalVideoKey) {
+        setVideoUploading(true);
+        const res = await uploadAiFileToS3(videoFile, "videoReference", (pct) => setVideoProgress(pct));
+        finalVideoKey = res.fileKey;
+        setVideoKey(finalVideoKey);
+        setVideoUploading(false);
+      }
+
+      // If image file was selected but not uploaded yet, upload now
+      if (imageFile && !finalImageKey) {
+        setImageUploading(true);
+        const res = await uploadAiFileToS3(imageFile, "imageReference", (pct) => setImageProgress(pct));
+        finalImageKey = res.fileKey;
+        setImageKey(finalImageKey);
+        setImageUploading(false);
+      }
+
+      const finalPrompt = prompt.trim() || DEFAULT_SUNDARBANS_PROMPT;
+
+      navigate("/ai-video-edit-generated-script", {
+        state: {
+          type: "VIDEO_EDIT",
+          prompt: finalPrompt,
+          originalPrompt: finalPrompt,
+          videoReference: finalVideoKey || "",
+          imageReference: finalImageKey || "",
+          videoReferenceKey: finalVideoKey || "",
+          imageReferenceKey: finalImageKey || "",
+          videoFileName: videoFile?.name || "input_video.mp4",
+          imageFileName: imageFile?.name || "tigerr.png",
+          videoPreviewUrl: videoPreview,
+          imagePreviewUrl: imagePreview,
+          videoModificationPrompt: DEFAULT_TIGER_MODIFICATION_PROMPT,
+          audio: audioEnabled,
+          resolution: "720p",
+          aspectRatio: "16:9",
+          duration: 5,
+        },
+      });
+    } catch (err) {
+      console.error("Continue error:", err);
+      const msg = err?.response?.data?.message || err?.message || "Failed to process uploads.";
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -163,7 +312,7 @@ const CreateAiVideoEdit = () => {
 
             <input
               type="file"
-              accept="video/*,image/*"
+              accept="video/*"
               ref={videoInputRef}
               onChange={handleVideoUpload}
               style={{ display: "none" }}
@@ -173,10 +322,11 @@ const CreateAiVideoEdit = () => {
               onClick={() => videoInputRef.current?.click()}
               sx={{
                 width: "100%",
-                height: { xs: "145px", sm: "165px" },
-                border: "1.5px dashed #CBD5E1",
+                minHeight: { xs: "145px", sm: "165px" },
+                border: "1.5px dashed",
+                borderColor: videoKey ? "#10B981" : videoUploading ? "#FF1572" : "#CBD5E1",
                 borderRadius: "14px",
-                bgcolor: "#FFFFFF",
+                bgcolor: videoKey ? "#F0FDF4" : "#FFFFFF",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -184,6 +334,7 @@ const CreateAiVideoEdit = () => {
                 gap: 1,
                 cursor: "pointer",
                 p: 2,
+                position: "relative",
                 boxSizing: "border-box",
                 transition: "all 0.2s ease-in-out",
                 "&:hover": {
@@ -193,33 +344,122 @@ const CreateAiVideoEdit = () => {
                 },
               }}
             >
-              <Box
-                component="img"
-                src={uploadIcon}
-                alt="Upload"
-                sx={{ width: 36, height: 36, objectFit: "contain" }}
-              />
-              <Typography
-                sx={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: { xs: "12px", sm: "13px" },
-                  fontWeight: 500,
-                  color: "#262626",
-                  textAlign: "center",
-                }}
-              >
-                {videoFile ? videoFile.name : "Drop product image here or click to browse files"}
-              </Typography>
-              <Typography
-                sx={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: { xs: "10px", sm: "11px" },
-                  color: "#8C8C8C",
-                  textAlign: "center",
-                }}
-              >
-                JPG, PNG, WEBP · Max 10MB
-              </Typography>
+              {videoFile ? (
+                <Box
+                  sx={{
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    {videoKey ? (
+                      <CheckCircleRoundedIcon sx={{ color: "#10B981", fontSize: 24 }} />
+                    ) : videoUploading ? (
+                      <CircularProgress size={22} sx={{ color: "#FF1572" }} />
+                    ) : (
+                      <Box
+                        component="img"
+                        src={uploadIcon}
+                        alt="Video"
+                        sx={{ width: 28, height: 28, objectFit: "contain" }}
+                      />
+                    )}
+                    <Typography
+                      sx={{
+                        fontFamily: "Inter, sans-serif",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#262626",
+                        maxWidth: "200px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {videoFile.name}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={handleRemoveVideo}
+                      sx={{ p: "2px", "&:hover": { color: "#FF1572" } }}
+                    >
+                      <CloseIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Box>
+
+                  {videoUploading && (
+                    <Box sx={{ width: "80%", mt: 0.5 }}>
+                      <LinearProgress
+                        variant="determinate"
+                        value={videoProgress}
+                        sx={{
+                          height: 6,
+                          borderRadius: 3,
+                          bgcolor: "#FEE2E2",
+                          "& .MuiLinearProgress-bar": { bgcolor: "#FF1572" },
+                        }}
+                      />
+                      <Typography
+                        sx={{
+                          fontSize: "11px",
+                          fontFamily: "Inter, sans-serif",
+                          color: "#6B7280",
+                          textAlign: "center",
+                          mt: 0.5,
+                        }}
+                      >
+                        Uploading... {videoProgress}%
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {videoKey && (
+                    <Typography
+                      sx={{
+                        fontSize: "11px",
+                        fontFamily: "Inter, sans-serif",
+                        color: "#059669",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Uploaded & ready
+                    </Typography>
+                  )}
+                </Box>
+              ) : (
+                <>
+                  <Box
+                    component="img"
+                    src={uploadIcon}
+                    alt="Upload"
+                    sx={{ width: 36, height: 36, objectFit: "contain" }}
+                  />
+                  <Typography
+                    sx={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: { xs: "12px", sm: "13px" },
+                      fontWeight: 500,
+                      color: "#262626",
+                      textAlign: "center",
+                    }}
+                  >
+                    Drop reference video here or click to browse
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: { xs: "10px", sm: "11px" },
+                      color: "#8C8C8C",
+                      textAlign: "center",
+                    }}
+                  >
+                    MP4, WEBM, MOV · Max 100MB
+                  </Typography>
+                </>
+              )}
             </Box>
           </Box>
 
@@ -253,10 +493,11 @@ const CreateAiVideoEdit = () => {
               onClick={() => imageInputRef.current?.click()}
               sx={{
                 width: "100%",
-                height: { xs: "145px", sm: "165px" },
-                border: "1.5px dashed #CBD5E1",
+                minHeight: { xs: "145px", sm: "165px" },
+                border: "1.5px dashed",
+                borderColor: imageKey ? "#10B981" : imageUploading ? "#FF1572" : "#CBD5E1",
                 borderRadius: "14px",
-                bgcolor: "#FFFFFF",
+                bgcolor: imageKey ? "#F0FDF4" : "#FFFFFF",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -264,6 +505,7 @@ const CreateAiVideoEdit = () => {
                 gap: 1,
                 cursor: "pointer",
                 p: 2,
+                position: "relative",
                 boxSizing: "border-box",
                 transition: "all 0.2s ease-in-out",
                 "&:hover": {
@@ -273,38 +515,127 @@ const CreateAiVideoEdit = () => {
                 },
               }}
             >
-              <Box
-                component="img"
-                src={uploadIcon}
-                alt="Upload"
-                sx={{ width: 36, height: 36, objectFit: "contain" }}
-              />
-              <Typography
-                sx={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: { xs: "12px", sm: "13px" },
-                  fontWeight: 500,
-                  color: "#262626",
-                  textAlign: "center",
-                }}
-              >
-                {imageFile ? imageFile.name : "Click to browse image or photo"}
-              </Typography>
-              <Typography
-                sx={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: "11px",
-                  color: "#737373",
-                  textAlign: "center",
-                }}
-              >
-                PNG, JPG or WEBP (optional)
-              </Typography>
+              {imageFile ? (
+                <Box
+                  sx={{
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    {imageKey ? (
+                      <CheckCircleRoundedIcon sx={{ color: "#10B981", fontSize: 24 }} />
+                    ) : imageUploading ? (
+                      <CircularProgress size={22} sx={{ color: "#FF1572" }} />
+                    ) : (
+                      <Box
+                        component="img"
+                        src={uploadIcon}
+                        alt="Image"
+                        sx={{ width: 28, height: 28, objectFit: "contain" }}
+                      />
+                    )}
+                    <Typography
+                      sx={{
+                        fontFamily: "Inter, sans-serif",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#262626",
+                        maxWidth: "200px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {imageFile.name}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={handleRemoveImage}
+                      sx={{ p: "2px", "&:hover": { color: "#FF1572" } }}
+                    >
+                      <CloseIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Box>
+
+                  {imageUploading && (
+                    <Box sx={{ width: "80%", mt: 0.5 }}>
+                      <LinearProgress
+                        variant="determinate"
+                        value={imageProgress}
+                        sx={{
+                          height: 6,
+                          borderRadius: 3,
+                          bgcolor: "#FEE2E2",
+                          "& .MuiLinearProgress-bar": { bgcolor: "#FF1572" },
+                        }}
+                      />
+                      <Typography
+                        sx={{
+                          fontSize: "11px",
+                          fontFamily: "Inter, sans-serif",
+                          color: "#6B7280",
+                          textAlign: "center",
+                          mt: 0.5,
+                        }}
+                      >
+                        Uploading... {imageProgress}%
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {imageKey && (
+                    <Typography
+                      sx={{
+                        fontSize: "11px",
+                        fontFamily: "Inter, sans-serif",
+                        color: "#059669",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Uploaded & ready
+                    </Typography>
+                  )}
+                </Box>
+              ) : (
+                <>
+                  <Box
+                    component="img"
+                    src={uploadIcon}
+                    alt="Upload"
+                    sx={{ width: 36, height: 36, objectFit: "contain" }}
+                  />
+                  <Typography
+                    sx={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: { xs: "12px", sm: "13px" },
+                      fontWeight: 500,
+                      color: "#262626",
+                      textAlign: "center",
+                    }}
+                  >
+                    Click to browse image or photo
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: "11px",
+                      color: "#737373",
+                      textAlign: "center",
+                    }}
+                  >
+                    PNG, JPG or WEBP (e.g. tigerr.png)
+                  </Typography>
+                </>
+              )}
             </Box>
           </Box>
         </Box>
 
-        {/* Instructions / Prompt Section */}
+        {/* Instructions / Base Prompt Section */}
         <Box sx={{ mb: { xs: 2.5, sm: 3.5 } }}>
           <Typography
             component="label"
@@ -319,7 +650,7 @@ const CreateAiVideoEdit = () => {
               mb: 1.2,
             }}
           >
-            Editing Instructions / Prompt
+            Video Scene Prompt / Description
             <Box
               component="span"
               sx={{
@@ -340,10 +671,10 @@ const CreateAiVideoEdit = () => {
             fullWidth
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe what edits or enhancements you want AI to make to your video, transitions, effects, pacing, etc..."
+            placeholder="Describe the base video scene or flyover details..."
             sx={{
               "& .MuiOutlinedInput-root": {
-                height: { xs: "120px", sm: "130px" },
+                minHeight: { xs: "110px", sm: "120px" },
                 borderRadius: "12px",
                 bgcolor: "#FFFFFF",
                 fontSize: { xs: "13px", sm: "14px" },
@@ -441,13 +772,18 @@ const CreateAiVideoEdit = () => {
           <Button
             variant="contained"
             onClick={handleContinue}
+            disabled={isSubmitting || videoUploading || imageUploading}
             endIcon={
-              <Box
-                component="img"
-                src={arrowIcon}
-                alt="Continue"
-                sx={{ width: 16, height: 16, objectFit: "contain" }}
-              />
+              isSubmitting || videoUploading || imageUploading ? (
+                <CircularProgress size={16} sx={{ color: "#FFFFFF" }} />
+              ) : (
+                <Box
+                  component="img"
+                  src={arrowIcon}
+                  alt="Continue"
+                  sx={{ width: 16, height: 16, objectFit: "contain" }}
+                />
+              )
             }
             sx={{
               bgcolor: "#FF1572",
@@ -466,12 +802,16 @@ const CreateAiVideoEdit = () => {
               "&:hover": {
                 bgcolor: "#FF1572",
                 boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
-                transform: "translateY(-1px)",
+                transform: isSubmitting || videoUploading || imageUploading ? "none" : "translateY(-1px)",
+              },
+              "&.Mui-disabled": {
+                bgcolor: "#FF8AB8",
+                color: "#FFFFFF",
               },
               transition: "all 0.2s ease-in-out",
             }}
           >
-            Continue Script
+            {isSubmitting || videoUploading || imageUploading ? "Uploading & Processing..." : "Continue Script"}
           </Button>
         </Box>
       </Container>

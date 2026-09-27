@@ -8,6 +8,9 @@ import {
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
+import ReplayRoundedIcon from "@mui/icons-material/ReplayRounded";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import CreatePostPublishModal from "../../../components/aiContentBanner/CreatePostPublishModal";
 import Header from "../../../components/header";
 import { toast } from "react-toastify";
@@ -16,7 +19,10 @@ import {
   publishIcon,
   sampleAirplaneVideoThumb,
 } from "../../../assets/aiAssets";
-import { getAiGenerationStatus } from "../../../api/aiContent/generations";
+import {
+  getAiGenerationStatus,
+  createAiGeneration,
+} from "../../../api/aiContent/generations";
 import {
   subscribeToAiGeneration,
   extractAiMediaUrl,
@@ -36,6 +42,7 @@ const AiVideoReady = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [openPublishModal, setOpenPublishModal] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const [videoUrl, setVideoUrl] = useState(
     creationData.mediaUrl || creationData.videoUrl || null
@@ -45,7 +52,7 @@ const AiVideoReady = () => {
   );
   const [progress, setProgress] = useState(creationData.progress || 5);
   const [statusMessage, setStatusMessage] = useState(
-    creationData.message || "Your edited video is being created by AI. Please check back shortly."
+    creationData.message || "Your video is being created by AI. Please check back shortly."
   );
 
   // Subscribe to real-time AI socket events
@@ -65,14 +72,19 @@ const AiVideoReady = () => {
 
         if (foundUrl) {
           setVideoUrl(foundUrl);
+          setGenerationStatus("completed");
+          setProgress(100);
+          toast.success(data?.message || "Your AI video is ready!");
+        } else {
+          setGenerationStatus("completed");
+          setProgress(100);
         }
-        setGenerationStatus("completed");
-        setProgress(100);
-        toast.success(data?.message || "Your AI video is ready!");
       },
       onError: (err) => {
         setGenerationStatus("failed");
-        toast.error(err?.message || "Video generation failed. Please try again.");
+        const errMsg = err?.message || "Video generation failed or timed out.";
+        setStatusMessage(errMsg);
+        toast.error(errMsg);
       },
     });
 
@@ -81,9 +93,9 @@ const AiVideoReady = () => {
     };
   }, [creationData.generationId, videoUrl]);
 
-  // Poll GET /ai/generations/:generationId
+  // Poll GET /ai/generations/:generationId fallback
   useEffect(() => {
-    if (!creationData.generationId || videoUrl) return;
+    if (!creationData.generationId || videoUrl || generationStatus === "failed") return;
 
     let intervalId = null;
     let isMounted = true;
@@ -103,17 +115,21 @@ const AiVideoReady = () => {
         const foundUrl =
           extractAiMediaUrl(resBody) || data.mediaUrl || data.videoUrl || data.outputUrl;
 
-        if (data.status === "completed" || foundUrl) {
-          if (foundUrl) {
-            setVideoUrl(foundUrl);
-          }
+        if (foundUrl) {
+          setVideoUrl(foundUrl);
           setGenerationStatus("completed");
           setProgress(100);
           toast.success(resBody?.message || data.message || "Your AI video is ready!");
           if (intervalId) clearInterval(intervalId);
+        } else if (data.status === "completed") {
+          setGenerationStatus("completed");
+          setProgress(100);
+          if (intervalId) clearInterval(intervalId);
         } else if (data.status === "failed" || data.status === "error") {
           setGenerationStatus("failed");
-          toast.error(data.message || "Video generation failed. Please try again.");
+          const errMsg = data.message || "Video generation failed or timed out.";
+          setStatusMessage(errMsg);
+          toast.error(errMsg);
           if (intervalId) clearInterval(intervalId);
         }
       } catch (err) {
@@ -128,7 +144,7 @@ const AiVideoReady = () => {
       isMounted = false;
       if (intervalId) clearInterval(intervalId);
     };
-  }, [creationData.generationId, videoUrl]);
+  }, [creationData.generationId, videoUrl, generationStatus]);
 
   // Handle Fullscreen state changes
   useEffect(() => {
@@ -143,8 +159,10 @@ const AiVideoReady = () => {
     };
   }, []);
 
-  const isProcessing = !videoUrl && generationStatus === "processing";
-  const currentMedia = videoUrl || DEFAULT_SAMPLE_VIDEO_THUMB;
+  const isFailed = generationStatus === "failed" || generationStatus === "error";
+  const isProcessing = !videoUrl && !isFailed && generationStatus === "processing";
+  const currentMedia = videoUrl || (isFailed ? null : DEFAULT_SAMPLE_VIDEO_THUMB);
+
   const isDirectVideo =
     Boolean(videoUrl) ||
     (typeof currentMedia === "string" &&
@@ -160,6 +178,49 @@ const AiVideoReady = () => {
 
   const handleBack = () => {
     navigate(-1);
+  };
+
+  const handleRetryGeneration = async () => {
+    try {
+      setIsRetrying(true);
+      setGenerationStatus("processing");
+      setProgress(5);
+      setStatusMessage("Starting AI video generation retry...");
+
+      const payload = {
+        type: "VIDEO",
+        prompt: creationData.prompt || creationData.originalPrompt,
+        resolution: creationData.resolution || "720p",
+        aspectRatio: creationData.aspectRatio || "16:9",
+        duration: creationData.duration ? Number(creationData.duration) : 5,
+        audio: creationData.audio !== undefined ? Boolean(creationData.audio) : true,
+      };
+
+      const response = await createAiGeneration(payload);
+      const resBody = response?.data;
+
+      if (resBody?.status === "success" && resBody?.data) {
+        const genData = resBody.data;
+        creationData.generationId = genData.generationId;
+        creationData.contentId = genData.contentId;
+        toast.success(resBody.message || "AI video generation restarted.");
+      } else {
+        setGenerationStatus("failed");
+        toast.error(resBody?.message || "Retry failed. Please try again.");
+      }
+    } catch (err) {
+      setGenerationStatus("failed");
+      const errMsg = err?.response?.data?.message || err?.message || "Failed to retry generation.";
+      toast.error(errMsg);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  const handleEditScript = () => {
+    navigate("/ai-video-generated-script", {
+      state: creationData,
+    });
   };
 
   const handleDownload = async () => {
@@ -244,14 +305,18 @@ const AiVideoReady = () => {
           sx={{
             fontFamily: "Inter, sans-serif",
             fontWeight: 600,
-            color: "#FF1572",
+            color: isFailed ? "#EF4444" : "#FF1572",
             fontSize: { xs: "22px", sm: "26px", md: "28px" },
             lineHeight: "36px",
             letterSpacing: "-1px",
             mb: 0.6,
           }}
         >
-          {isProcessing ? "Your AI Video is Being Generated..." : "Your Video is Ready"}
+          {isFailed
+            ? "Video Generation Timed Out"
+            : isProcessing
+            ? "Your AI Video is Being Generated..."
+            : "Your Video is Ready"}
         </Typography>
 
         <Typography
@@ -263,7 +328,9 @@ const AiVideoReady = () => {
             mb: { xs: 3, sm: 4 },
           }}
         >
-          {isProcessing
+          {isFailed
+            ? "The AI video engine encountered a timeout or issue while generating the video. You can retry or edit your prompt."
+            : isProcessing
             ? "Please wait a moment while AI processes and renders your video."
             : "Your AI-generated video is ready. Preview it with full audio and zoom controls, or download it directly."}
         </Typography>
@@ -290,15 +357,98 @@ const AiVideoReady = () => {
               borderRadius: isFullscreen ? "0px" : "16px",
               overflow: "hidden",
               boxShadow: "0px 8px 30px rgba(0, 0, 0, 0.15)",
-              bgcolor: "#000000",
-              border: isFullscreen ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
+              bgcolor: isFailed ? "#1E1E1E" : "#000000",
+              border: isFullscreen ? "none" : isFailed ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(255, 255, 255, 0.1)",
               position: "relative",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            {isProcessing ? (
+            {isFailed ? (
+              /* Failed State */
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 2,
+                  p: 3,
+                  textAlign: "center",
+                }}
+              >
+                <ErrorOutlineRoundedIcon sx={{ fontSize: 56, color: "#EF4444" }} />
+                <Typography
+                  sx={{
+                    fontFamily: "Inter, sans-serif",
+                    fontWeight: 600,
+                    fontSize: "16px",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  AI Generation Did Not Complete
+                </Typography>
+                <Typography
+                  sx={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: "13px",
+                    color: "rgba(255, 255, 255, 0.75)",
+                    lineHeight: 1.45,
+                    maxWidth: "400px",
+                  }}
+                >
+                  {statusMessage ||
+                    "The video generation worker timed out or encountered an error. Please retry generation or adjust your input prompt."}
+                </Typography>
+
+                <Box sx={{ display: "flex", gap: 1.5, mt: 1 }}>
+                  <Button
+                    variant="contained"
+                    onClick={handleRetryGeneration}
+                    disabled={isRetrying}
+                    startIcon={
+                      isRetrying ? (
+                        <CircularProgress size={16} sx={{ color: "#FFFFFF" }} />
+                      ) : (
+                        <ReplayRoundedIcon sx={{ fontSize: 18 }} />
+                      )
+                    }
+                    sx={{
+                      bgcolor: "#FF1572",
+                      color: "#FFFFFF",
+                      borderRadius: "30px",
+                      textTransform: "none",
+                      fontWeight: 600,
+                      px: 2.5,
+                      "&:hover": { bgcolor: "#E00E63" },
+                    }}
+                  >
+                    {isRetrying ? "Retrying..." : "Retry Generation"}
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    onClick={handleEditScript}
+                    startIcon={<EditRoundedIcon sx={{ fontSize: 18 }} />}
+                    sx={{
+                      borderColor: "rgba(255, 255, 255, 0.4)",
+                      color: "#FFFFFF",
+                      borderRadius: "30px",
+                      textTransform: "none",
+                      fontWeight: 500,
+                      px: 2,
+                      "&:hover": {
+                        borderColor: "#FFFFFF",
+                        bgcolor: "rgba(255, 255, 255, 0.1)",
+                      },
+                    }}
+                  >
+                    Edit Prompt
+                  </Button>
+                </Box>
+              </Box>
+            ) : isProcessing ? (
               <Box
                 sx={{
                   display: "flex",
@@ -372,111 +522,63 @@ const AiVideoReady = () => {
           </Box>
 
           {/* Action Buttons: Download & Publish */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: { xs: 1.5, sm: 2 },
-              mt: { xs: 3, sm: 3.5 },
-              width: { xs: "100%", sm: "auto" },
-              flexWrap: { xs: "wrap", sm: "nowrap" },
-            }}
-          >
-            {/* Download Button */}
-            {/* <Button
-              variant="outlined"
-              onClick={handleDownload}
-              disabled={isProcessing || isDownloading}
-              startIcon={
-                isDownloading ? (
-                  <CircularProgress size={18} sx={{ color: "#FF1572" }} />
-                ) : (
+          {!isFailed && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: { xs: 1.5, sm: 2 },
+                mt: { xs: 3, sm: 3.5 },
+                width: { xs: "100%", sm: "auto" },
+                flexWrap: { xs: "wrap", sm: "nowrap" },
+              }}
+            >
+              {/* Publish & Post Button */}
+              <Button
+                variant="contained"
+                onClick={handlePublishAndPost}
+                disabled={isProcessing}
+                startIcon={
                   <Box
                     component="img"
-                    src={downloadIcon}
-                    alt="Download"
+                    src={publishIcon}
+                    alt="Publish & Post"
                     sx={{ width: 18, height: 18, objectFit: "contain" }}
                   />
-                )
-              }
-              sx={{
-                bgcolor: "#FFFFFF",
-                color: "#FF1572",
-                borderColor: "#FFD1E3",
-                borderWidth: "1px",
-                borderRadius: "53px",
-                height: "44px",
-                px: { xs: "20px", sm: "24px" },
-                py: "10px",
-                fontSize: { xs: "13px", sm: "14px" },
-                fontWeight: 600,
-                textTransform: "none",
-                fontFamily: "Inter, sans-serif",
-                boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.05)",
-                whiteSpace: "nowrap",
-                flex: { xs: 1, sm: "none" },
-                minWidth: { xs: "130px", sm: "140px" },
-                "&:hover": {
-                  borderColor: "#FF1572",
-                  bgcolor: "#FFF5F8",
-                  transform: isProcessing || isDownloading ? "none" : "translateY(-1px)",
-                },
-                "&.Mui-disabled": {
-                  color: "#9CA3AF",
-                  borderColor: "#E5E7EB",
-                  bgcolor: "#FAFAFA",
-                },
-                transition: "all 0.2s ease-in-out",
-              }}
-            >
-              {isDownloading ? "Downloading..." : "Download Video"}
-            </Button> */}
-
-            {/* Publish & Post Button */}
-            <Button
-              variant="contained"
-              onClick={handlePublishAndPost}
-              disabled={isProcessing}
-              startIcon={
-                <Box
-                  component="img"
-                  src={publishIcon}
-                  alt="Publish & Post"
-                  sx={{ width: 18, height: 18, objectFit: "contain" }}
-                />
-              }
-              sx={{
-                bgcolor: "#FF1572",
-                color: "#FFFFFF",
-                borderRadius: "53px",
-                height: "44px",
-                px: { xs: "20px", sm: "24px" },
-                py: "10px",
-                fontSize: { xs: "13px", sm: "14px" },
-                fontWeight: 600,
-                textTransform: "none",
-                fontFamily: "Inter, sans-serif",
-                boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.25)",
-                whiteSpace: "nowrap",
-                flex: { xs: 1, sm: "none" },
-                minWidth: { xs: "140px", sm: "155px" },
-                "&:hover": {
+                }
+                sx={{
                   bgcolor: "#FF1572",
-                  boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
-                  transform: isProcessing ? "none" : "translateY(-1px)",
-                },
-                "&.Mui-disabled": {
-                  bgcolor: "#E5E7EB",
-                  color: "#9CA3AF",
-                  boxShadow: "none",
-                },
-                transition: "all 0.2s ease-in-out",
-              }}
-            >
-              Publish & Post
-            </Button>
-          </Box>
+                  color: "#FFFFFF",
+                  borderRadius: "53px",
+                  height: "44px",
+                  px: { xs: "20px", sm: "24px" },
+                  py: "10px",
+                  fontSize: { xs: "13px", sm: "14px" },
+                  fontWeight: 600,
+                  textTransform: "none",
+                  fontFamily: "Inter, sans-serif",
+                  boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.25)",
+                  whiteSpace: "nowrap",
+                  flex: { xs: 1, sm: "none" },
+                  minWidth: { xs: "140px", sm: "155px" },
+                  "&:hover": {
+                    bgcolor: "#FF1572",
+                    boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
+                    transform: isProcessing ? "none" : "translateY(-1px)",
+                  },
+                  "&.Mui-disabled": {
+                    bgcolor: "#E5E7EB",
+                    color: "#9CA3AF",
+                    boxShadow: "none",
+                  },
+                  transition: "all 0.2s ease-in-out",
+                }}
+              >
+                Publish & Post
+              </Button>
+            </Box>
+          )}
         </Box>
       </Container>
 

@@ -1,66 +1,176 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
+  CircularProgress,
   Container,
   TextField,
   Typography,
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { toast } from "react-toastify";
 import Header from "../../../components/header";
 import {
   arrowIcon,
   editIcon,
   scriptIcon,
 } from "../../../assets/aiAssets";
-
-const defaultScript = `Okay, I have been sleeping on this and I cannot believe I waited so long to try it.
-This HydroGlow Serum has completely changed my morning routine. The hyaluronic acid complex actually penetrates — you can feel it — and within two weeks my skin looked more plump and hydrated than it has in years. It's fragrance-free, absorbs instantly, and works under makeup without pilling. Link in bio.
-They have a starter kit right now that's honestly a steal. Your skin will thank you.`;
-
-const sampleRegeneratedScripts = [
-  `Okay, I have been sleeping on this and I cannot believe I waited so long to try it.
-This HydroGlow Serum has completely changed my morning routine. The hyaluronic acid complex actually penetrates — you can feel it — and within two weeks my skin looked more plump and hydrated than it has in years. It's fragrance-free, absorbs instantly, and works under makeup without pilling. Link in bio.
-They have a starter kit right now that's honestly a steal. Your skin will thank you.`,
-  `Stop scrolling if you want glass skin! I finally tried this viral HydroGlow Serum and the hype is 100% real.
-My dry skin felt instantly rejuvenated and bouncy from day one. Packed with pure hyaluronic acid that deeply absorbs without any stickiness. Check the link in my bio to grab their limited-time starter kit!`,
-  `Here is my honest review on the product everyone is talking about: HydroGlow Serum.
-Within just 10 days, my skin texture noticeably smoothed out and gained that natural radiant glow. It is lightweight, non-greasy, and layers flawlessly under makeup. Highly recommend getting the starter pack before it sells out!`,
-];
+import { refineAiPrompt } from "../../../api/aiContent/prompts";
+import { createAiGeneration } from "../../../api/aiContent/generations";
+import { connectAiSocket } from "../../../api/aiContent/aiSocket";
+import { DEFAULT_SUNDARBANS_PROMPT, DEFAULT_TIGER_MODIFICATION_PROMPT } from "./CreateAiVideoEdit";
 
 const AiGeneratedVideoEditScript = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const creationData = location.state || {};
 
-  const [scriptText, setScriptText] = useState(defaultScript);
+  useEffect(() => {
+    connectAiSocket();
+  }, []);
+
+  // Modification prompt state
+  const initialModScript =
+    creationData.videoModificationPrompt ||
+    creationData.refinedPrompt ||
+    DEFAULT_TIGER_MODIFICATION_PROMPT;
+
+  const [scriptText, setScriptText] = useState(initialModScript);
   const [isEditing, setIsEditing] = useState(false);
-  const [regenIndex, setRegenIndex] = useState(0);
+  const [regenLoading, setRegenLoading] = useState(false);
+  const [generateLoading, setGenerateLoading] = useState(false);
 
   const handleBack = () => {
     navigate(-1);
   };
 
-  const handleRegenerate = () => {
-    const nextIndex = (regenIndex + 1) % sampleRegeneratedScripts.length;
-    setRegenIndex(nextIndex);
-    setScriptText(sampleRegeneratedScripts[nextIndex]);
-    setIsEditing(false);
+  // Regenerate video modification script using refine prompt API
+  const handleRegenerate = async () => {
+    const rawPrompt = scriptText.trim() || creationData.prompt || DEFAULT_TIGER_MODIFICATION_PROMPT;
+
+    setRegenLoading(true);
+    try {
+      const payload = {
+        type: "VIDEO_EDIT",
+        prompt: rawPrompt,
+        style: creationData.style || "Cinematic, Photorealistic Wildlife",
+        settings: {
+          resolution: creationData.resolution || "720p",
+          aspectRatio: creationData.aspectRatio || "16:9",
+          duration: creationData.duration || "5",
+        },
+      };
+
+      const response = await refineAiPrompt(payload);
+      const resBody = response?.data;
+
+      if (resBody?.status === "success" && resBody?.data) {
+        const newRefined =
+          resBody.data.refinedPrompt || resBody.data.originalPrompt || rawPrompt;
+        setScriptText(newRefined);
+        setIsEditing(false);
+        toast.success(resBody.message || "Modification script regenerated successfully!");
+      } else {
+        toast.error(resBody?.message || "Failed to regenerate script.");
+      }
+    } catch (error) {
+      console.error("Error regenerating modification script:", error);
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "An error occurred while regenerating the script.";
+      toast.error(errorMsg);
+    } finally {
+      setRegenLoading(false);
+    }
   };
 
   const handleToggleEdit = () => {
     setIsEditing((prev) => !prev);
   };
 
-  const handleGenerateVideo = () => {
-    navigate("/ai-video-edit-ready", {
-      state: {
-        ...creationData,
-        script: scriptText,
-        isEdited: true,
-      },
-    });
+  // Trigger POST /ai/generations with type: "VIDEO_EDIT"
+  const handleGenerateVideo = async () => {
+    const finalModScript = scriptText.trim();
+    if (!finalModScript) {
+      toast.error("Please enter or generate a modification instruction prompt first.");
+      return;
+    }
+
+    setGenerateLoading(true);
+
+    const basePrompt =
+      creationData.prompt || creationData.originalPrompt || DEFAULT_SUNDARBANS_PROMPT;
+
+    const payload = {
+      type: "VIDEO_EDIT",
+      prompt: basePrompt,
+      videoModificationPrompt: finalModScript,
+      audio: creationData.audio !== undefined ? Boolean(creationData.audio) : true,
+    };
+
+    if (creationData.videoReference || creationData.videoReferenceKey) {
+      payload.videoReference =
+        creationData.videoReference || creationData.videoReferenceKey;
+    }
+    if (creationData.imageReference || creationData.imageReferenceKey) {
+      payload.imageReference =
+        creationData.imageReference || creationData.imageReferenceKey;
+    }
+
+    try {
+      const response = await createAiGeneration(payload);
+      const resBody = response?.data;
+      const isOk =
+        (response?.status >= 200 && response?.status < 300) ||
+        resBody?.status === "success";
+
+      const genData = resBody?.data || resBody;
+
+      if (isOk && (genData?.generationId || resBody?.status === "success")) {
+        toast.success(
+          resBody?.message || "AI video_edit generation started. Status is processing."
+        );
+
+        navigate("/ai-video-edit-ready", {
+          state: {
+            ...creationData,
+            type: "VIDEO_EDIT",
+            generationId: genData?.generationId,
+            contentId: genData?.contentId,
+            generationData: genData,
+            status: genData?.status || "processing",
+            progress: genData?.progress !== undefined ? genData.progress : 5,
+            reservedCredits: genData?.reservedCredits || 6,
+            message:
+              genData?.message ||
+              "Your edited video is being created by AI. Please check back shortly.",
+            estimatedWaitSeconds: genData?.estimatedWaitSeconds || 65,
+            prompt: genData?.prompt || basePrompt,
+            videoModificationPrompt: finalModScript,
+            videoReference: payload.videoReference,
+            imageReference: payload.imageReference,
+            audio: payload.audio,
+            videoUrl:
+              genData?.videoUrl || genData?.outputUrl || genData?.mediaUrl || null,
+          },
+        });
+      } else {
+        const errorMsg =
+          resBody?.message || "Failed to start AI video edit generation. Please try again.";
+        toast.error(errorMsg);
+      }
+    } catch (error) {
+      console.error("Error creating AI video edit generation:", error);
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.message ||
+        "An error occurred while starting video edit generation.";
+      toast.error(errorMsg);
+    } finally {
+      setGenerateLoading(false);
+    }
   };
 
   return (
@@ -117,7 +227,7 @@ const AiGeneratedVideoEditScript = () => {
             mb: 0.6,
           }}
         >
-          Your AI-generated script
+          Your AI Video Edit Instructions
         </Typography>
 
         <Typography
@@ -129,7 +239,7 @@ const AiGeneratedVideoEditScript = () => {
             mb: { xs: 3, sm: 3.5 },
           }}
         >
-          We use this to create a script that feels authentic and converts.
+          Review and refine how AI will modify your video with the provided reference assets.
         </Typography>
 
         {/* AI Generated Script Label */}
@@ -147,7 +257,7 @@ const AiGeneratedVideoEditScript = () => {
               mb: 1.2,
             }}
           >
-            AI Generated Script for Video
+            Video Modification Instructions
             <Box
               component="span"
               sx={{
@@ -167,8 +277,8 @@ const AiGeneratedVideoEditScript = () => {
           <Box
             sx={{
               width: "100%",
-              height: { xs: "auto", sm: "224px" },
-              minHeight: { xs: "180px", sm: "224px" },
+              height: { xs: "auto", sm: "240px" },
+              minHeight: { xs: "190px", sm: "240px" },
               borderRadius: "12px",
               border: "1px solid #B3B3B3",
               bgcolor: "#FFFFFF",
@@ -195,8 +305,8 @@ const AiGeneratedVideoEditScript = () => {
                   "& .MuiInputBase-input": {
                     fontFamily: "Inter, sans-serif",
                     fontWeight: 400,
-                    fontSize: { xs: "14px", sm: "16px" },
-                    lineHeight: "150%",
+                    fontSize: { xs: "14px", sm: "15px" },
+                    lineHeight: "160%",
                     letterSpacing: "0px",
                     color: "#000000",
                     p: 0,
@@ -208,8 +318,8 @@ const AiGeneratedVideoEditScript = () => {
                 sx={{
                   fontFamily: "Inter, sans-serif",
                   fontWeight: 400,
-                  fontSize: { xs: "14px", sm: "16px" },
-                  lineHeight: "150%",
+                  fontSize: { xs: "14px", sm: "15px" },
+                  lineHeight: "160%",
                   letterSpacing: "0px",
                   color: "#000000",
                   whiteSpace: "pre-line",
@@ -245,13 +355,18 @@ const AiGeneratedVideoEditScript = () => {
             <Button
               variant="contained"
               onClick={handleRegenerate}
+              disabled={regenLoading || generateLoading}
               endIcon={
-                <Box
-                  component="img"
-                  src={scriptIcon}
-                  alt="Regenerate"
-                  sx={{ width: 16, height: 16, objectFit: "contain" }}
-                />
+                regenLoading ? (
+                  <CircularProgress size={14} sx={{ color: "#FFFFFF" }} />
+                ) : (
+                  <Box
+                    component="img"
+                    src={scriptIcon}
+                    alt="Regenerate"
+                    sx={{ width: 16, height: 16, objectFit: "contain" }}
+                  />
+                )
               }
               sx={{
                 bgcolor: "#FF1572",
@@ -276,18 +391,19 @@ const AiGeneratedVideoEditScript = () => {
                 "&:hover": {
                   bgcolor: "#FF1572",
                   boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
-                  transform: "translateY(-1px)",
+                  transform: regenLoading || generateLoading ? "none" : "translateY(-1px)",
                 },
                 transition: "all 0.2s ease-in-out",
               }}
             >
-              Regenerate Script
+              {regenLoading ? "Regenerating..." : "Regenerate Script"}
             </Button>
 
             {/* Edit Script Button */}
             <Button
               variant="contained"
               onClick={handleToggleEdit}
+              disabled={regenLoading || generateLoading}
               endIcon={
                 <Box
                   component="img"
@@ -319,7 +435,7 @@ const AiGeneratedVideoEditScript = () => {
                 "&:hover": {
                   bgcolor: "#1558D6",
                   boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
-                  transform: "translateY(-1px)",
+                  transform: regenLoading || generateLoading ? "none" : "translateY(-1px)",
                 },
                 transition: "all 0.2s ease-in-out",
               }}
@@ -332,13 +448,18 @@ const AiGeneratedVideoEditScript = () => {
           <Button
             variant="contained"
             onClick={handleGenerateVideo}
+            disabled={generateLoading || regenLoading}
             endIcon={
-              <Box
-                component="img"
-                src={arrowIcon}
-                alt="Generate Video"
-                sx={{ width: 16, height: 16, objectFit: "contain" }}
-              />
+              generateLoading ? (
+                <CircularProgress size={16} sx={{ color: "#FFFFFF" }} />
+              ) : (
+                <Box
+                  component="img"
+                  src={arrowIcon}
+                  alt="Generate Video"
+                  sx={{ width: 16, height: 16, objectFit: "contain" }}
+                />
+              )
             }
             sx={{
               bgcolor: "#FF1572",
@@ -358,12 +479,12 @@ const AiGeneratedVideoEditScript = () => {
               "&:hover": {
                 bgcolor: "#FF1572",
                 boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
-                transform: "translateY(-1px)",
+                transform: generateLoading || regenLoading ? "none" : "translateY(-1px)",
               },
               transition: "all 0.2s ease-in-out",
             }}
           >
-            Generate Video
+            {generateLoading ? "Generating Video..." : "Generate Video"}
           </Button>
         </Box>
       </Container>
