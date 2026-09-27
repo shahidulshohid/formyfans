@@ -4,13 +4,10 @@ import {
   Button,
   CircularProgress,
   Container,
-  IconButton,
   Typography,
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
-import PauseRoundedIcon from "@mui/icons-material/PauseRounded";
 import CreatePostPublishModal from "../../../components/aiContentBanner/CreatePostPublishModal";
 import Header from "../../../components/header";
 import { toast } from "react-toastify";
@@ -33,10 +30,12 @@ const AiVideoReady = () => {
   const location = useLocation();
   const creationData = location.state || {};
 
+  const playerContainerRef = useRef(null);
   const videoRef = useRef(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [openPublishModal, setOpenPublishModal] = useState(false);
-  const [downloading, setDownloading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const [videoUrl, setVideoUrl] = useState(
     creationData.mediaUrl || creationData.videoUrl || null
@@ -69,19 +68,16 @@ const AiVideoReady = () => {
         }
         setGenerationStatus("completed");
         setProgress(100);
-        toast.success(data?.message || payload?.message || "Your AI video is ready!");
+        toast.success(data?.message || "Your AI video is ready!");
       },
-      onFailed: (payload) => {
-        const data = payload?.data || payload;
+      onError: (err) => {
         setGenerationStatus("failed");
-        toast.error(
-          data?.message || payload?.message || "Video generation failed. Please try again."
-        );
+        toast.error(err?.message || "Video generation failed. Please try again.");
       },
     });
 
     return () => {
-      unsubscribe();
+      if (typeof unsubscribe === "function") unsubscribe();
     };
   }, [creationData.generationId, videoUrl]);
 
@@ -134,31 +130,36 @@ const AiVideoReady = () => {
     };
   }, [creationData.generationId, videoUrl]);
 
+  // Handle Fullscreen state changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
   const isProcessing = !videoUrl && generationStatus === "processing";
   const currentMedia = videoUrl || DEFAULT_SAMPLE_VIDEO_THUMB;
   const isDirectVideo =
-    typeof currentMedia === "string" &&
-    (currentMedia.endsWith(".mp4") ||
-      currentMedia.endsWith(".webm") ||
-      currentMedia.includes("video") ||
-      currentMedia.startsWith("blob:"));
+    Boolean(videoUrl) ||
+    (typeof currentMedia === "string" &&
+      !currentMedia.endsWith(".jpg") &&
+      !currentMedia.endsWith(".jpeg") &&
+      !currentMedia.endsWith(".png") &&
+      !currentMedia.endsWith(".webp") &&
+      (currentMedia.endsWith(".mp4") ||
+        currentMedia.endsWith(".webm") ||
+        currentMedia.endsWith(".mov") ||
+        currentMedia.startsWith("blob:") ||
+        currentMedia.startsWith("data:video")));
 
   const handleBack = () => {
     navigate(-1);
-  };
-
-  const handleTogglePlay = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        videoRef.current.play();
-        setIsPlaying(true);
-      }
-    } else {
-      setIsPlaying((prev) => !prev);
-    }
   };
 
   const handleDownload = async () => {
@@ -167,18 +168,28 @@ const AiVideoReady = () => {
       return;
     }
 
-    setDownloading(true);
-    const ext = isDirectVideo ? "mp4" : "jpg";
-    const fileName = `ai-video-${creationData.generationId || Date.now()}.${ext}`;
-
     try {
-      await downloadMedia(currentMedia, fileName);
-      toast.success("Video downloaded to your Downloads folder!");
+      setIsDownloading(true);
+      const isVid = Boolean(
+        videoUrl ||
+        isDirectVideo ||
+        (typeof currentMedia === "string" &&
+          (currentMedia.includes(".mp4") ||
+            currentMedia.includes(".webm") ||
+            currentMedia.includes("video")))
+      );
+      const ext = isVid ? "mp4" : "jpg";
+      const fileName = `formyfans-video-${creationData.generationId || Date.now()}.${ext}`;
+
+      const success = await downloadMedia(currentMedia, fileName);
+      if (success) {
+        toast.success("Download started!");
+      }
     } catch (err) {
       console.error("Download error:", err);
       toast.error("Failed to download video. Please try again.");
     } finally {
-      setDownloading(false);
+      setIsDownloading(false);
     }
   };
 
@@ -192,7 +203,7 @@ const AiVideoReady = () => {
       <Container
         maxWidth={false}
         sx={{
-          maxWidth: "880px",
+          maxWidth: "920px",
           px: { xs: 2.5, sm: 4 },
           pt: { xs: 3, sm: 5, md: 6 },
         }}
@@ -254,7 +265,7 @@ const AiVideoReady = () => {
         >
           {isProcessing
             ? "Please wait a moment while AI processes and renders your video."
-            : "Your AI-generated video is ready to preview. Review it, download, or publish directly."}
+            : "Your AI-generated video is ready. Preview it with full audio and zoom controls, or download it directly."}
         </Typography>
 
         {/* Central Video Preview Card Container */}
@@ -268,24 +279,24 @@ const AiVideoReady = () => {
             mt: { xs: 1, sm: 2 },
           }}
         >
-          {/* Video Preview Card */}
+          {/* Video Player Card */}
           <Box
+            ref={playerContainerRef}
             sx={{
-              width: { xs: "100%", sm: "355px" },
-              maxWidth: "355px",
-              height: { xs: "460px", sm: "497px" },
-              borderRadius: "16px",
+              width: { xs: "100%", sm: "420px", md: "520px" },
+              maxWidth: "520px",
+              aspectRatio: isFullscreen ? "auto" : "16 / 9",
+              minHeight: { xs: "280px", sm: "320px", md: "360px" },
+              borderRadius: isFullscreen ? "0px" : "16px",
               overflow: "hidden",
-              boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.08)",
+              boxShadow: "0px 8px 30px rgba(0, 0, 0, 0.15)",
               bgcolor: "#000000",
-              border: "1px solid rgba(255, 255, 255, 0.07)",
+              border: isFullscreen ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
               position: "relative",
-              cursor: isProcessing ? "default" : "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
-            onClick={!isProcessing ? handleTogglePlay : undefined}
           >
             {isProcessing ? (
               <Box
@@ -299,7 +310,7 @@ const AiVideoReady = () => {
                   textAlign: "center",
                 }}
               >
-                <CircularProgress size={48} sx={{ color: "#FF1572" }} />
+                <CircularProgress size={52} sx={{ color: "#FF1572" }} />
                 <Typography
                   sx={{
                     fontFamily: "Inter, sans-serif",
@@ -316,187 +327,47 @@ const AiVideoReady = () => {
                     fontSize: "12px",
                     color: "rgba(255, 255, 255, 0.7)",
                     lineHeight: 1.4,
+                    maxWidth: "380px",
                   }}
                 >
                   {statusMessage || "Your video is being created by AI. Please hold on."}
                 </Typography>
               </Box>
-            ) : isDirectVideo ? (
-              <Box
-                component="video"
-                ref={videoRef}
-                src={currentMedia}
-                loop
-                playsInline
-                onEnded={() => setIsPlaying(false)}
-                sx={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                }}
-              />
             ) : (
               <>
-                {/* Background Media */}
-                <Box
-                  component="img"
-                  src={currentMedia}
-                  alt="AI Video Preview"
-                  sx={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                />
-
-                {/* Top Right Brand Badge */}
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: 14,
-                    right: 14,
-                    bgcolor: "rgba(255, 255, 255, 0.95)",
-                    borderRadius: "4px",
-                    px: 1,
-                    py: 0.3,
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: "10px",
-                      fontWeight: 800,
-                      color: "#FF1572",
-                      letterSpacing: "0.5px",
-                    }}
-                  >
-                    MENTO
-                  </Typography>
-                </Box>
-
-                {/* Video Overlay Text */}
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: "35%",
-                    right: 16,
-                    textAlign: "right",
-                    pointerEvents: "none",
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontFamily: "Inter, sans-serif",
-                      fontWeight: 800,
-                      fontSize: { xs: "15px", sm: "17px" },
-                      color: "#1E3A8A",
-                      lineHeight: 1.15,
-                      textShadow: "0 1px 4px rgba(255,255,255,0.7)",
-                    }}
-                  >
-                    Your Mates Are
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontFamily: "Inter, sans-serif",
-                      fontWeight: 900,
-                      fontSize: { xs: "22px", sm: "26px" },
-                      color: "#0F2669",
-                      lineHeight: 1.1,
-                      letterSpacing: "-0.5px",
-                      textShadow: "0 1px 4px rgba(255,255,255,0.8)",
-                    }}
-                  >
-                    Traveling
-                  </Typography>
-                </Box>
-
-                {/* Bottom Overlay CTA & Caption */}
-                <Box
-                  sx={{
-                    position: "absolute",
-                    bottom: 16,
-                    left: 0,
-                    right: 0,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 0.8,
-                    zIndex: 2,
-                    px: 2,
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: { xs: "10px", sm: "11px" },
-                      fontWeight: 500,
-                      color: "#FFFFFF",
-                      textAlign: "center",
-                      textShadow: "0 1px 3px rgba(0,0,0,0.8)",
-                    }}
-                  >
-                    Another year should not pass you by.
-                  </Typography>
+                {/* Video Media Element with Native HTML5 Controls & Native Three-Dot Menu */}
+                {isDirectVideo ? (
                   <Box
+                    component="video"
+                    ref={videoRef}
+                    src={currentMedia}
+                    controls
+                    playsInline
+                    loop
                     sx={{
-                      bgcolor: "#FFFFFF",
-                      color: "#000000",
-                      borderRadius: "50px",
-                      px: 2,
-                      py: 0.4,
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      fontFamily: "Inter, sans-serif",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      bgcolor: "#000000",
+                      display: "block",
+                      borderRadius: isFullscreen ? "0px" : "16px",
                     }}
-                  >
-                    Act now
-                  </Box>
-                </Box>
+                  />
+                ) : (
+                  <Box
+                    component="img"
+                    src={currentMedia}
+                    alt="AI Video Preview"
+                    sx={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                      borderRadius: isFullscreen ? "0px" : "16px",
+                    }}
+                  />
+                )}
               </>
-            )}
-
-            {/* Central Play Button */}
-            {!isProcessing && (
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  zIndex: 2,
-                }}
-              >
-                <IconButton
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleTogglePlay();
-                  }}
-                  sx={{
-                    width: { xs: 46, sm: 52 },
-                    height: { xs: 46, sm: 52 },
-                    bgcolor: "rgba(0, 0, 0, 0.55)",
-                    color: "#FFFFFF",
-                    backdropFilter: "blur(4px)",
-                    boxShadow: "0 4px 15px rgba(0,0,0,0.3)",
-                    "&:hover": {
-                      bgcolor: "rgba(0, 0, 0, 0.75)",
-                      transform: "scale(1.06)",
-                    },
-                    transition: "all 0.2s ease-in-out",
-                  }}
-                >
-                  {isPlaying ? (
-                    <PauseRoundedIcon sx={{ fontSize: { xs: 26, sm: 30 } }} />
-                  ) : (
-                    <PlayArrowRoundedIcon sx={{ fontSize: { xs: 28, sm: 32 }, ml: "2px" }} />
-                  )}
-                </IconButton>
-              </Box>
             )}
           </Box>
 
@@ -513,13 +384,13 @@ const AiVideoReady = () => {
             }}
           >
             {/* Download Button */}
-            <Button
+            {/* <Button
               variant="outlined"
               onClick={handleDownload}
-              disabled={downloading || isProcessing}
+              disabled={isProcessing || isDownloading}
               startIcon={
-                downloading ? (
-                  <CircularProgress size={16} sx={{ color: "#FF1572" }} />
+                isDownloading ? (
+                  <CircularProgress size={18} sx={{ color: "#FF1572" }} />
                 ) : (
                   <Box
                     component="img"
@@ -549,7 +420,7 @@ const AiVideoReady = () => {
                 "&:hover": {
                   borderColor: "#FF1572",
                   bgcolor: "#FFF5F8",
-                  transform: downloading || isProcessing ? "none" : "translateY(-1px)",
+                  transform: isProcessing || isDownloading ? "none" : "translateY(-1px)",
                 },
                 "&.Mui-disabled": {
                   color: "#9CA3AF",
@@ -559,8 +430,8 @@ const AiVideoReady = () => {
                 transition: "all 0.2s ease-in-out",
               }}
             >
-              {downloading ? "Downloading..." : "Download"}
-            </Button>
+              {isDownloading ? "Downloading..." : "Download Video"}
+            </Button> */}
 
             {/* Publish & Post Button */}
             <Button
