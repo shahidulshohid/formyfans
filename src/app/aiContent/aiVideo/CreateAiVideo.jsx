@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
+  CircularProgress,
   Container,
   Switch,
   TextField,
@@ -9,8 +10,11 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { toast } from "react-toastify";
 import Header from "../../../components/header";
 import { arrowIcon } from "../../../assets/aiAssets";
+import { refineAiPrompt } from "../../../api/aiContent/prompts";
+import { connectAiSocket } from "../../../api/aiContent/aiSocket";
 
 const resolutions = [
   { id: "480p", label: "480p" },
@@ -37,23 +41,92 @@ const CreateAiVideo = () => {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState("Cinematic, Photorealistic");
-  const [selectedResolution, setSelectedResolution] = useState("1080p");
+  const [selectedResolution, setSelectedResolution] = useState("720p");
   const [selectedAspectRatio, setSelectedAspectRatio] = useState("16:9");
-  const [selectedDuration, setSelectedDuration] = useState("10");
+  const [selectedDuration, setSelectedDuration] = useState("5");
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const handleContinue = () => {
-    navigate("/ai-video-generated-script", {
-      state: {
-        type: "video",
-        prompt,
-        style: style.trim() || "Cinematic, Photorealistic",
+  useEffect(() => {
+    connectAiSocket();
+  }, []);
+
+  const handleContinue = async () => {
+    if (!prompt.trim()) {
+      toast.error("Please enter a prompt to generate your video.");
+      return;
+    }
+
+    connectAiSocket();
+    setLoading(true);
+
+    const appliedStyle = style.trim() || "Cinematic, Photorealistic";
+
+    const payload = {
+      type: "VIDEO",
+      prompt: prompt.trim(),
+      style: appliedStyle,
+      settings: {
         resolution: selectedResolution,
         aspectRatio: selectedAspectRatio,
         duration: selectedDuration,
-        audio: audioEnabled,
       },
-    });
+    };
+
+    try {
+      const response = await refineAiPrompt(payload);
+      const resBody = response?.data;
+
+      if (resBody?.status === "success" && resBody?.data) {
+        const refineData = resBody.data;
+        toast.success(resBody.message || "Prompt refined successfully!");
+
+        navigate("/ai-video-generated-script", {
+          state: {
+            type: "video",
+            prompt: prompt.trim(),
+            refinedPrompt: refineData.refinedPrompt || prompt.trim(),
+            originalPrompt: refineData.originalPrompt || prompt.trim(),
+            promptId: refineData.promptId,
+            style: refineData.style || appliedStyle,
+            resolution: selectedResolution,
+            aspectRatio: selectedAspectRatio,
+            duration: selectedDuration,
+            audio: audioEnabled,
+          },
+        });
+      } else {
+        // Fallback: navigate directly with raw prompt
+        navigate("/ai-video-generated-script", {
+          state: {
+            type: "video",
+            prompt: prompt.trim(),
+            refinedPrompt: prompt.trim(),
+            style: appliedStyle,
+            resolution: selectedResolution,
+            aspectRatio: selectedAspectRatio,
+            duration: selectedDuration,
+            audio: audioEnabled,
+          },
+        });
+      }
+    } catch (error) {
+      console.warn("Prompt refine failed, navigating with entered prompt:", error);
+      navigate("/ai-video-generated-script", {
+        state: {
+          type: "video",
+          prompt: prompt.trim(),
+          refinedPrompt: prompt.trim(),
+          style: appliedStyle,
+          resolution: selectedResolution,
+          aspectRatio: selectedAspectRatio,
+          duration: selectedDuration,
+          audio: audioEnabled,
+        },
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBack = () => {
@@ -561,13 +634,18 @@ const CreateAiVideo = () => {
           <Button
             variant="contained"
             onClick={handleContinue}
+            disabled={loading}
             endIcon={
-              <Box
-                component="img"
-                src={arrowIcon}
-                alt="Continue"
-                sx={{ width: 16, height: 16, objectFit: "contain" }}
-              />
+              loading ? (
+                <CircularProgress size={16} sx={{ color: "#FFFFFF" }} />
+              ) : (
+                <Box
+                  component="img"
+                  src={arrowIcon}
+                  alt="Continue"
+                  sx={{ width: 16, height: 16, objectFit: "contain" }}
+                />
+              )
             }
             sx={{
               bgcolor: "#FF1572",
@@ -586,12 +664,12 @@ const CreateAiVideo = () => {
               "&:hover": {
                 bgcolor: "#FF1572",
                 boxShadow: "0px 2px 4px 0px rgba(0, 0, 0, 0.25)",
-                transform: "translateY(-1px)",
+                transform: loading ? "none" : "translateY(-1px)",
               },
               transition: "all 0.2s ease-in-out",
             }}
           >
-            Continue Script
+            {loading ? "Refining Script..." : "Continue Script"}
           </Button>
         </Box>
       </Container>
