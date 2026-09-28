@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -8,52 +8,26 @@ import {
   InputBase,
   Chip,
   Grow,
+  CircularProgress,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
-import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import { useNavigate } from "react-router-dom";
 import { aiChatBoatImg } from "../../assets/aiAssets";
+import useUserStore from "../../zustand/userUserStore";
+import { getAiChatHistory, sendAiChatMessage } from "../../api/aiContent/aiChatbot";
 
-// Quick prompt suggestions
-const QUICK_PROMPTS = [
-  {
-    id: "ugc_script",
-    label: "🎬 UGC Video Script",
-    text: "Write a 30-second viral UGC video script for a trending product with strong hooks and CTA.",
-  },
-  {
-    id: "ai_image_prompt",
-    label: "🎨 AI Image Prompt",
-    text: "Generate 3 highly detailed, aesthetic AI image prompts for my creator portfolio.",
-  },
-  {
-    id: "captions",
-    label: "✍️ Viral Post Captions",
-    text: "Give me 5 catchy caption ideas with high-engagement hashtags for my new post.",
-  },
-  {
-    id: "video_edit",
-    label: "✂️ Video Editing Ideas",
-    text: "How can I edit my short-form video to maximize watch time and fan retention?",
-  },
-  {
-    id: "fan_growth",
-    label: "📈 Fan Growth Strategy",
-    text: "What are the best strategies to convert casual viewers into paying fan subscribers?",
-  },
-];
-
-// Initial welcoming messages
+// Initial welcoming message fallback
 const INITIAL_MESSAGES = [
   {
     id: "welcome-1",
     sender: "bot",
-    text: "👋 Hey there! I'm your **AI Creative Assistant**.\n\nI can help you craft viral UGC scripts, generate AI image & video ideas, write killer captions, or optimize your content for your fans!",
+    text: "👋 Hey there! I'm your **AI Creative Assistant** for ForMyFansOnly (FMFO).\n\nI can help you craft viral UGC scripts, generate AI image & video ideas, write killer captions, or optimize your content for your fans! How can I assist you today?",
     timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     quickActions: [
       { label: "🎨 Create AI Image", path: "/ai-create-image" },
@@ -63,144 +37,33 @@ const INITIAL_MESSAGES = [
   },
 ];
 
-// AI response generation logic
-const generateAiResponse = (userQuery) => {
-  const query = userQuery.toLowerCase().trim();
-
-  // Bengali / Banglish greeting or query
-  if (
-    query.includes("kemon") ||
-    query.includes("ki khobor") ||
-    query.includes("bhalo") ||
-    query.includes("tumi ke") ||
-    query.includes("help") ||
-    query.includes("sahajjo") ||
-    query.includes("ki korte paro")
-  ) {
-    return {
-      text: `আমি আপনার **AI কনটেন্ট অ্যাসিস্ট্যান্ট**! 🤖✨\n\nআমি আপনাকে যেভাবে সাহায্য করতে পারি:\n- 🎬 **UGC ভিডিও স্ক্রিপ্ট** লেখা\n- 🎨 **AI ইমেজ ও ভিডিও প্রম্পট** তৈরি করা\n- ✍️ আকর্ষনীয় **ক্যাপশন ও হ্যাশট্যাগ** জেনারেট করা\n- 📈 **ফ্যান গ্রোথ ও সাবস্ক্রিপশন** বাড়ানোর কৌশল\n\nআপনি কী ধরনের কনটেন্ট নিয়ে কাজ করতে চান বলুন?`,
-      tools: [
-        { label: "🎨 AI Image তৈরি করুন", path: "/ai-create-image" },
-        { label: "🎬 AI Video তৈরি করুন", path: "/ai-create-video" },
-      ],
-    };
+// Format ISO date string to user-friendly local time
+const formatMessageTime = (isoString) => {
+  if (!isoString) {
+    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
-
-  // Script generation
-  if (
-    query.includes("script") ||
-    query.includes("ugc") ||
-    query.includes("video script") ||
-    query.includes("storyboard")
-  ) {
-    return {
-      text: `🎬 **Viral 30-Second UGC Video Script**\n\n` +
-        `**🎯 Hook (0-3s):**\n"Stop scrolling if you've been struggling to get real engagement on your content!" *(Visual: Dynamic close-up with energetic gesture)*\n\n` +
-        `**⚡ Problem (3-10s):**\n"Creating high quality content daily is exhausting, and generic posts just don't convert fans anymore."\n\n` +
-        `**💡 Solution (10-22s):**\n"That's why AI-powered content creation is a game changer. You can generate studio-quality images, cinematic videos, and automated edits in minutes!"\n\n` +
-        `**🚀 Call To Action (22-30s):**\n"Try it right now on your creator dashboard and watch your fan community grow. Tap below to start creating!"`,
-      tools: [
-        { label: "🎬 Open AI Video Creator", path: "/ai-create-video" },
-        { label: "✂️ Open AI Video Editor", path: "/ai-create-video-edit" },
-      ],
-    };
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) {
+      return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch (e) {
+    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
-
-  // AI Image prompts
-  if (
-    query.includes("image") ||
-    query.includes("photo") ||
-    query.includes("pic") ||
-    query.includes("prompt") ||
-    query.includes("chobi")
-  ) {
-    return {
-      text: `🎨 **3 Aesthetic AI Image Prompts for High Engagement:**\n\n` +
-        `**1. Cinematic Studio Portrait:**\n\`Hyper-realistic studio portrait, glamorous soft neon pink rim lighting, 8k resolution, photorealistic depth of field, 85mm lens, vogue magazine style --ar 16:9 --v 6.0\`\n\n` +
-        `**2. Cyberpunk Creator Vibe:**\n\`Futuristic creator workspace with holographic screens, ambient magenta and violet lighting, ultra-detailed, cinematic octane render --ar 9:16\`\n\n` +
-        `**3. Lifestyle Aesthetic:**\n\`Golden hour aesthetic lifestyle photo, warm soft sunlight, natural candid expression, cinematic film grain, minimalist modern interior\``,
-      tools: [
-        { label: "🎨 Generate This in AI Image", path: "/ai-create-image" },
-      ],
-    };
-  }
-
-  // Video editing
-  if (
-    query.includes("edit") ||
-    query.includes("cut") ||
-    query.includes("transition") ||
-    query.includes("sound")
-  ) {
-    return {
-      text: `✂️ **Pro Short-Form Video Editing Formula:**\n\n` +
-        `1. **First 2 Seconds:** Add a visual pattern interrupt (fast zoom-in or motion graphic text overlay).\n` +
-        `2. **Pacing:** Cut every 2.5 - 3 seconds to keep retention high.\n` +
-        `3. **Sound Design:** Add subtle whoosh sounds on transitions and keep upbeat background music at -18dB.\n` +
-        `4. **Captions:** Use bold, colorful dynamic animated subtitles with highlight colors (#FF1572).\n` +
-        `5. **End Loop:** Connect the last sentence seamlessly back to the first sentence for infinite watch loops!`,
-      tools: [
-        { label: "✂️ Launch AI Video Editor", path: "/ai-create-video-edit" },
-      ],
-    };
-  }
-
-  // Captions & Hashtags
-  if (
-    query.includes("caption") ||
-    query.includes("hashtag") ||
-    query.includes("title") ||
-    query.includes("bio")
-  ) {
-    return {
-      text: `✍️ **5 High-Engagement Caption Options:**\n\n` +
-        `**Option 1 (Curiosity Hook):**\n"Nobody talks about this secret to doubling fan engagement... 🤫 Watch till the end! Link in bio for exclusive content ✨"\n\n` +
-        `**Option 2 (Relatable / Casual):**\n"Creating behind-the-scenes magic just for you guys today 💕 Which outfit was your favorite: 1 or 2? Drop a comment below 👇"\n\n` +
-        `**Option 3 (Exclusive Teaser):**\n"Unfiltered & raw. Premium subscribers already got the full video 💎 Don't miss out on what's next!"\n\n` +
-        `🔥 **Trending Hashtags:**\n#ForMyFans #ContentCreator #ViralUGC #CreatorEconomy #AIPowered #TrendingNow`,
-    };
-  }
-
-  // Fan Growth & Monetization
-  if (
-    query.includes("growth") ||
-    query.includes("fan") ||
-    query.includes("subscriber") ||
-    query.includes("monetiz") ||
-    query.includes("money") ||
-    query.includes("earn")
-  ) {
-    return {
-      text: `📈 **Top 4 Strategies to Maximize Creator Revenue & Fans:**\n\n` +
-        `1. **Exclusive Content Teasers:** Post teaser clips on your public feed, and gate the full VIP version for subscribers.\n` +
-        `2. **Direct Chat Engagement:** Send personalized welcome audio or quick notes to new VIP subscribers to build loyalty.\n` +
-        `3. **Consistent Posting Schedule:** Leverage our AI Video & Image tools to maintain 1-2 high-quality posts daily without burnout.\n` +
-        `4. **Custom Fan Requests:** Offer customized video shoutouts or merchandise in your marketplace for high-ticket earnings!`,
-    };
-  }
-
-  // General helpful response
-  return {
-    text: `✨ I understand! To give you the best assistance, here are a few things I can do for you right away:\n\n` +
-      `• **Write a tailored script** for your next video\n` +
-      `• **Generate optimized prompts** for AI Image & Video creation\n` +
-      `• **Suggest catchy captions** and trending hashtags\n` +
-      `• **Provide creator strategies** to grow your fans & earnings\n\n` +
-      `What specific idea would you like to explore?`,
-    tools: [
-      { label: "🎨 Create AI Image", path: "/ai-create-image" },
-      { label: "🎬 Create AI Video", path: "/ai-create-video" },
-      { label: "✂️ AI Video Edit", path: "/ai-create-video-edit" },
-    ],
-  };
 };
 
 export const AiChatbot = () => {
   const navigate = useNavigate();
+  const user = useUserStore((state) => state.user);
+  const activeUserId = user?._id || user?.id || "6aa27ecc8c2bfc8162153f03";
+
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
   const [hasUnread, setHasUnread] = useState(false);
 
@@ -211,6 +74,47 @@ export const AiChatbot = () => {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  // Fetch chat history from backend API
+  const fetchChatHistory = useCallback(
+    async (showLoading = true) => {
+      if (!activeUserId) return;
+      if (showLoading) setIsLoadingHistory(true);
+
+      try {
+        const data = await getAiChatHistory(activeUserId);
+
+        if (data && Array.isArray(data.messages) && data.messages.length > 0) {
+          const formattedMessages = data.messages.map((item, index) => ({
+            id: `msg-${index}-${item.created_at || Date.now()}`,
+            sender: item.role === "assistant" || item.role === "bot" ? "bot" : "user",
+            text: item.message,
+            timestamp: formatMessageTime(item.created_at),
+          }));
+          setMessages(formattedMessages);
+        } else {
+          // If no previous history, show welcome message
+          setMessages(INITIAL_MESSAGES);
+        }
+        setHistoryLoaded(true);
+      } catch (err) {
+        console.warn("Failed to load chat history, using fallback:", err);
+        if (messages.length === 0) {
+          setMessages(INITIAL_MESSAGES);
+        }
+      } finally {
+        if (showLoading) setIsLoadingHistory(false);
+      }
+    },
+    [activeUserId, messages.length]
+  );
+
+  // Fetch history when user opens the chatbot for the first time
+  useEffect(() => {
+    if (isOpen && !historyLoaded) {
+      fetchChatHistory(true);
+    }
+  }, [isOpen, historyLoaded, fetchChatHistory]);
 
   useEffect(() => {
     if (isOpen) {
@@ -226,7 +130,8 @@ export const AiChatbot = () => {
     setIsOpen((prev) => !prev);
   };
 
-  const handleSendMessage = (textToSend) => {
+  // Send message handler connecting directly to API
+  const handleSendMessage = async (textToSend) => {
     const text = (textToSend || inputValue).trim();
     if (!text || isTyping) return;
 
@@ -237,28 +142,45 @@ export const AiChatbot = () => {
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
+    // Optimistic UI update
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
     setIsTyping(true);
 
-    // Simulate AI thinking and response
-    setTimeout(() => {
-      const responseData = generateAiResponse(text);
+    try {
+      // Call real backend API
+      const response = await sendAiChatMessage(activeUserId, text);
+
       const botMessage = {
         id: `bot-${Date.now()}`,
         sender: "bot",
-        text: responseData.text,
-        tools: responseData.tools || [],
+        text:
+          response?.AI_response ||
+          response?.message ||
+          "I'm here to help! What else would you like assistance with?",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
       setMessages((prev) => [...prev, botMessage]);
-      setIsTyping(false);
 
       if (!isOpen) {
         setHasUnread(true);
       }
-    }, 900);
+    } catch (err) {
+      console.error("Failed to get AI response from backend API:", err);
+
+      const errorMessage = {
+        id: `bot-err-${Date.now()}`,
+        sender: "bot",
+        text:
+          "⚠️ Sorry, I encountered a temporary connection issue. Please try sending your message again.",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -266,10 +188,6 @@ export const AiChatbot = () => {
       e.preventDefault();
       handleSendMessage();
     }
-  };
-
-  const handleClearChat = () => {
-    setMessages(INITIAL_MESSAGES);
   };
 
   const handleCopyText = (id, text) => {
@@ -483,19 +401,32 @@ export const AiChatbot = () => {
 
             {/* Header Actions */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Tooltip title="Clear Chat" arrow>
+              <Tooltip title="Refresh History" arrow>
                 <IconButton
                   size="small"
-                  onClick={handleClearChat}
+                  onClick={() => fetchChatHistory(true)}
+                  disabled={isLoadingHistory}
                   sx={{
                     color: "rgba(255, 255, 255, 0.85)",
                     "&:hover": {
                       color: "#ffffff",
                       bgcolor: "rgba(255, 255, 255, 0.15)",
                     },
+                    "&.Mui-disabled": {
+                      color: "rgba(255, 255, 255, 0.4)",
+                    },
                   }}
                 >
-                  <DeleteOutlineRoundedIcon sx={{ fontSize: 20 }} />
+                  <RefreshRoundedIcon
+                    sx={{
+                      fontSize: 20,
+                      animation: isLoadingHistory ? "spin 1s linear infinite" : "none",
+                      "@keyframes spin": {
+                        "0%": { transform: "rotate(0deg)" },
+                        "100%": { transform: "rotate(360deg)" },
+                      },
+                    }}
+                  />
                 </IconButton>
               </Tooltip>
 
@@ -539,6 +470,32 @@ export const AiChatbot = () => {
               },
             }}
           >
+            {/* Loading History Indicator */}
+            {isLoadingHistory && messages.length === 0 && (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  py: 6,
+                  gap: 1.5,
+                  color: "#FF1572",
+                }}
+              >
+                <CircularProgress size={28} thickness={4} sx={{ color: "#FF1572" }} />
+                <Typography
+                  sx={{
+                    fontSize: "12.5px",
+                    color: "#8E8E93",
+                    fontFamily: "Inter, sans-serif",
+                  }}
+                >
+                  Loading conversations...
+                </Typography>
+              </Box>
+            )}
+
             {messages.map((msg) => {
               const isUser = msg.sender === "user";
               return (
@@ -788,47 +745,6 @@ export const AiChatbot = () => {
             )}
 
             <div ref={messagesEndRef} />
-          </Box>
-
-          {/* Quick Suggestion Chips Carousel */}
-          <Box
-            sx={{
-              px: 1.5,
-              py: 1,
-              bgcolor: "#ffffff",
-              borderTop: "1px solid rgba(0, 0, 0, 0.05)",
-              display: "flex",
-              gap: 0.8,
-              overflowX: "auto",
-              whiteSpace: "nowrap",
-              scrollbarWidth: "none",
-              "&::-webkit-scrollbar": { display: "none" },
-            }}
-          >
-            {QUICK_PROMPTS.map((prompt) => (
-              <Chip
-                key={prompt.id}
-                label={prompt.label}
-                clickable
-                size="small"
-                onClick={() => handleSendMessage(prompt.text)}
-                disabled={isTyping}
-                sx={{
-                  bgcolor: "#FAF0F4",
-                  color: "#333333",
-                  fontSize: "11.5px",
-                  fontWeight: 500,
-                  border: "1px solid rgba(255, 21, 114, 0.15)",
-                  fontFamily: "Inter, sans-serif",
-                  "&:hover": {
-                    bgcolor: "#FF1572",
-                    color: "#ffffff",
-                    borderColor: "#FF1572",
-                  },
-                  transition: "all 0.2s ease",
-                }}
-              />
-            ))}
           </Box>
 
           {/* Input Box */}
