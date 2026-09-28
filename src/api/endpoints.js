@@ -196,6 +196,7 @@ export const S3_ENDPOINTS = {
 };
 
 export const AI_CONTENT_ENDPOINTS = {
+  CREDIT_BALANCE: "credits/balance",
   CREDIT_PRICING: "credits/pricing",
   CALCULATE_PRICE: "credits/calculate-price",
   PURCHASE_CREDITS: "credits/purchase",

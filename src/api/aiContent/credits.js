@@ -3,6 +3,16 @@ import { AI_CONTENT_ENDPOINTS } from "../endpoints";
 import { stripePublishableKey } from "../../config/stripe";
 
 /**
+ * Get current user credit balance
+ * GET /credits/balance
+ * @param {Object} params - Query params if any
+ * @returns {Promise<Object>} API response with balance, availableBalance, reserved, totalPurchased, totalSpent
+ */
+export const getCreditBalance = async (params) => {
+  return api(AI_CONTENT_ENDPOINTS.CREDIT_BALANCE, params, "get");
+};
+
+/**
  * Get AI credit pricing details
  * GET /credits/pricing
  * @param {Object} params - Query params if any
@@ -81,6 +91,7 @@ export const confirmStripePaymentIntent = async (paymentIntentId, data = {}) => 
 };
 
 export default {
+  getCreditBalance,
   getCreditPricing,
   calculateCreditPrice,
   purchaseAiCredits,

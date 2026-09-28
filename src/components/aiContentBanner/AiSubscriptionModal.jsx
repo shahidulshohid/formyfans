@@ -30,6 +30,7 @@ import { toast } from "react-toastify";
 import {
   calculateCreditPrice,
   confirmStripePaymentIntent,
+  getCreditBalance,
   getCreditPricing,
   purchaseAiCredits,
 } from "../../api/aiContent";
@@ -525,7 +526,7 @@ const AiSubscriptionModal = ({
     }
   };
 
-  const handlePaymentSuccess = (paymentResult) => {
+  const handlePaymentSuccess = async (paymentResult) => {
     const purchasedCredits = Number(paymentResult?.credits || creditAmount || 0);
 
     const setUserData = useUserStore.getState().setUserData;
@@ -536,6 +537,24 @@ const AiSubscriptionModal = ({
         aiCredits: (prev?.aiCredits || 0) + purchasedCredits,
         hasAiSubscription: true,
       }));
+    }
+
+    // Refresh actual balance from server
+    try {
+      const balRes = await getCreditBalance();
+      if (balRes?.data?.data) {
+        const balData = balRes.data.data;
+        if (setUserData) {
+          setUserData((prev) => ({
+            ...prev,
+            credits: balData.availableBalance ?? balData.balance ?? (prev?.credits || 0) + purchasedCredits,
+            aiCredits: balData.availableBalance ?? balData.balance ?? (prev?.aiCredits || 0) + purchasedCredits,
+            hasAiSubscription: true,
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to sync balance after payment:", err);
     }
 
     if (onSubscribe) {

@@ -1,44 +1,135 @@
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import AddToPhotosOutlinedIcon from "@mui/icons-material/AddToPhotosOutlined";
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, Typography, CircularProgress } from "@mui/material";
+import { toast } from "react-toastify";
 import AiSubscriptionModal from "./AiSubscriptionModal";
 import SelectAiContentTypeModal from "./SelectAiContentTypeModal";
-
+import { getCreditBalance, getCreditPricing } from "../../api/aiContent";
 import useUserStore from "../../zustand/userUserStore";
 
 const AiContentBanner = () => {
   const navigate = useNavigate();
-  const { user } = useUserStore();
+  const { user, setUserData } = useUserStore();
   const [openSubscriptionModal, setOpenSubscriptionModal] = useState(false);
   const [openContentTypeModal, setOpenContentTypeModal] = useState(false);
   const [subscriptionsTrue, setSubscriptionsTrue] = useState(false);
 
-  const hasAccess = Boolean(
-    subscriptionsTrue ||
-    user?.hasAiSubscription ||
-    user?.aiSubscription ||
-    (user?.credits && user.credits > 0) ||
-    (user?.aiCredits && user.aiCredits > 0)
-  );
+  const [balanceData, setBalanceData] = useState(null);
+  const [pricingData, setPricingData] = useState(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
 
-  const handleCreateClick = () => {
-    if (!hasAccess) {
+  // Fetch current credit balance
+  const fetchBalance = useCallback(async () => {
+    try {
+      setLoadingBalance(true);
+      const res = await getCreditBalance();
+      if (res?.data?.data) {
+        const data = res.data.data;
+        setBalanceData(data);
+        if (setUserData) {
+          setUserData((prev) => ({
+            ...prev,
+            credits: data.availableBalance ?? data.balance ?? prev?.credits,
+            aiCredits: data.availableBalance ?? data.balance ?? prev?.aiCredits,
+          }));
+        }
+        return data;
+      }
+    } catch (err) {
+      console.error("Failed to fetch credit balance:", err);
+    } finally {
+      setLoadingBalance(false);
+    }
+    return null;
+  }, [setUserData]);
+
+  // Fetch pricing data (for reservation credit limits)
+  const fetchPricing = useCallback(async () => {
+    try {
+      const res = await getCreditPricing();
+      if (res?.data?.data) {
+        setPricingData(res.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch credit pricing:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBalance();
+    fetchPricing();
+  }, [fetchBalance, fetchPricing]);
+
+  // Get current available balance with fallbacks
+  const getAvailableCredits = () => {
+    if (balanceData?.availableBalance !== undefined && balanceData?.availableBalance !== null) {
+      return Number(balanceData.availableBalance);
+    }
+    if (balanceData?.balance !== undefined && balanceData?.balance !== null) {
+      return Number(balanceData.balance);
+    }
+    if (user?.credits !== undefined && user?.credits !== null) {
+      return Number(user.credits);
+    }
+    if (user?.aiCredits !== undefined && user?.aiCredits !== null) {
+      return Number(user.aiCredits);
+    }
+    return 0;
+  };
+
+  const handleCreateClick = async () => {
+    let currentBalance = getAvailableCredits();
+
+    // If balance not loaded yet, fetch it immediately
+    if (balanceData === null) {
+      const freshData = await fetchBalance();
+      if (freshData) {
+        currentBalance = Number(freshData.availableBalance ?? freshData.balance ?? 0);
+      }
+    }
+
+    // Logic 1: If user has no available credit balance (<= 0), show Subscription/Purchase Modal
+    if (currentBalance <= 0 && !subscriptionsTrue) {
       setOpenSubscriptionModal(true);
     } else {
+      // Logic 2: If user has credits, open Content Type selection modal
       setOpenContentTypeModal(true);
     }
   };
 
-
   const handleContentTypeSelect = (item) => {
+    const available = getAvailableCredits();
+
+    const imageCost = pricingData?.imageReservationCredits ?? 1;
+    const videoCost = pricingData?.videoReservationCredits ?? 5;
+    const videoEditCost = pricingData?.videoEditReservationCredits ?? 6;
+
     if (item.id === "image") {
+      if (available < imageCost && !subscriptionsTrue) {
+        toast.error(`You need at least ${imageCost} credit to generate AI images. Please buy credits.`);
+        setOpenContentTypeModal(false);
+        setOpenSubscriptionModal(true);
+        return;
+      }
       setOpenContentTypeModal(false);
       navigate("/ai-create-image");
     } else if (item.id === "video") {
+      if (available < videoCost && !subscriptionsTrue) {
+        toast.error(`You need at least ${videoCost} credits to generate AI videos. Please buy credits.`);
+        setOpenContentTypeModal(false);
+        setOpenSubscriptionModal(true);
+        return;
+      }
       setOpenContentTypeModal(false);
       navigate("/ai-create-video");
     } else if (item.id === "video_edit") {
+      if (available < videoEditCost && !subscriptionsTrue) {
+        toast.error(`You need at least ${videoEditCost} credits to edit AI videos. Please buy credits.`);
+        setOpenContentTypeModal(false);
+        setOpenSubscriptionModal(true);
+        return;
+      }
       setOpenContentTypeModal(false);
       navigate("/ai-create-video-edit");
     }
@@ -137,6 +228,7 @@ const AiContentBanner = () => {
         setSubscriptionsTrue={setSubscriptionsTrue}
         onSubscribe={() => {
           setSubscriptionsTrue(true);
+          fetchBalance();
           setOpenSubscriptionModal(false);
           setOpenContentTypeModal(true);
         }}
