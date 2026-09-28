@@ -19,7 +19,6 @@ import {
 import { refineAiPrompt } from "../../../api/aiContent/prompts";
 import { createAiGeneration } from "../../../api/aiContent/generations";
 import { connectAiSocket } from "../../../api/aiContent/aiSocket";
-import { DEFAULT_SUNDARBANS_PROMPT, DEFAULT_TIGER_MODIFICATION_PROMPT } from "./CreateAiVideoEdit";
 
 const AiGeneratedVideoEditScript = () => {
   const navigate = useNavigate();
@@ -30,11 +29,13 @@ const AiGeneratedVideoEditScript = () => {
     connectAiSocket();
   }, []);
 
-  // Modification prompt state
+  // Modification prompt state (uses refinedPrompt generated from previous step)
   const initialModScript =
-    creationData.videoModificationPrompt ||
     creationData.refinedPrompt ||
-    DEFAULT_TIGER_MODIFICATION_PROMPT;
+    creationData.videoModificationPrompt ||
+    creationData.prompt ||
+    creationData.originalPrompt ||
+    "";
 
   const [scriptText, setScriptText] = useState(initialModScript);
   const [isEditing, setIsEditing] = useState(false);
@@ -47,14 +48,20 @@ const AiGeneratedVideoEditScript = () => {
 
   // Regenerate video modification script using refine prompt API
   const handleRegenerate = async () => {
-    const rawPrompt = scriptText.trim() || creationData.prompt || DEFAULT_TIGER_MODIFICATION_PROMPT;
+    const rawPrompt =
+      creationData.originalPrompt || creationData.prompt || scriptText.trim();
+
+    if (!rawPrompt) {
+      toast.error("No prompt available to regenerate.");
+      return;
+    }
 
     setRegenLoading(true);
     try {
       const payload = {
         type: "VIDEO_EDIT",
         prompt: rawPrompt,
-        style: creationData.style || "Cinematic, Photorealistic Wildlife",
+        style: creationData.style || "Cinematic Color Grade",
         settings: {
           resolution: creationData.resolution || "720p",
           aspectRatio: creationData.aspectRatio || "16:9",
@@ -101,7 +108,7 @@ const AiGeneratedVideoEditScript = () => {
     setGenerateLoading(true);
 
     const basePrompt =
-      creationData.prompt || creationData.originalPrompt || DEFAULT_SUNDARBANS_PROMPT;
+      creationData.originalPrompt || creationData.prompt || finalModScript;
 
     const payload = {
       type: "VIDEO_EDIT",

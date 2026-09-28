@@ -543,7 +543,7 @@ const AiVideoEditReady = () => {
               }}
             >
               {/* Download Button */}
-              <Button
+              {/* <Button
                 variant="outlined"
                 onClick={handleDownload}
                 disabled={isProcessing || isDownloading}
@@ -590,7 +590,7 @@ const AiVideoEditReady = () => {
                 }}
               >
                 {isDownloading ? "Downloading..." : "Download Video"}
-              </Button>
+              </Button> */}
 
               {/* Publish & Post Button */}
               <Button

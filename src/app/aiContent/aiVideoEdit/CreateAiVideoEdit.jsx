@@ -19,6 +19,7 @@ import Header from "../../../components/header";
 import { arrowIcon, uploadIcon } from "../../../assets/aiAssets";
 import { uploadAiFileToS3 } from "../../../api/aiContent/uploads";
 import { connectAiSocket } from "../../../api/aiContent/aiSocket";
+import { refineAiPrompt } from "../../../api/aiContent/prompts";
 
 export const DEFAULT_SUNDARBANS_PROMPT =
   "A breathtaking aerial video showcasing a drone flyover of the Sundarbans mangrove forest in Bangladesh at sunrise. The scene captures the serene beauty of misty waterways winding through the lush, dense canopy. The camera glides smoothly, highlighting the vibrant greens of the mangroves and the soft golden hues of the sunrise filtering through the trees. Wildlife can be seen in the underbrush and waterways, adding life to the tranquil landscape. The composition emphasizes the vastness of the forest, with gentle motion to create a cinematic feel, all within a 720p resolution and a 16:9 aspect ratio, lasting 5 seconds.";
@@ -49,7 +50,7 @@ const CreateAiVideoEdit = () => {
   const [imagePreview, setImagePreview] = useState(null);
 
   // Prompt and Audio State
-  const [prompt, setPrompt] = useState(DEFAULT_SUNDARBANS_PROMPT);
+  const [prompt, setPrompt] = useState("");
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -142,6 +143,11 @@ const CreateAiVideoEdit = () => {
 
   // Continue to Script Step
   const handleContinue = async () => {
+    if (!prompt.trim()) {
+      toast.error("Please describe your video scene before continuing.");
+      return;
+    }
+
     if (videoUploading || imageUploading) {
       toast.info("Files are still uploading. Please wait a moment.");
       return;
@@ -170,31 +176,60 @@ const CreateAiVideoEdit = () => {
         setImageUploading(false);
       }
 
-      const finalPrompt = prompt.trim() || DEFAULT_SUNDARBANS_PROMPT;
+      const finalPrompt = prompt.trim();
 
-      navigate("/ai-video-edit-generated-script", {
-        state: {
-          type: "VIDEO_EDIT",
-          prompt: finalPrompt,
-          originalPrompt: finalPrompt,
-          videoReference: finalVideoKey || "",
-          imageReference: finalImageKey || "",
-          videoReferenceKey: finalVideoKey || "",
-          imageReferenceKey: finalImageKey || "",
-          videoFileName: videoFile?.name || "input_video.mp4",
-          imageFileName: imageFile?.name || "tigerr.png",
-          videoPreviewUrl: videoPreview,
-          imagePreviewUrl: imagePreview,
-          videoModificationPrompt: DEFAULT_TIGER_MODIFICATION_PROMPT,
-          audio: audioEnabled,
+      // Call /ai/prompts/refine API for VIDEO_EDIT
+      const payload = {
+        type: "VIDEO_EDIT",
+        prompt: finalPrompt,
+        style: "Cinematic Color Grade",
+        settings: {
           resolution: "720p",
           aspectRatio: "16:9",
-          duration: 5,
         },
-      });
+      };
+
+      const response = await refineAiPrompt(payload);
+      const resBody = response?.data;
+
+      if (resBody?.status === "success" && resBody?.data) {
+        const refineData = resBody.data;
+        const refinedText = refineData.refinedPrompt || finalPrompt;
+        const originalText = refineData.originalPrompt || finalPrompt;
+
+        toast.success(resBody.message || "Prompt refined successfully!");
+
+        navigate("/ai-video-edit-generated-script", {
+          state: {
+            type: "VIDEO_EDIT",
+            prompt: originalText,
+            originalPrompt: originalText,
+            refinedPrompt: refinedText,
+            promptId: refineData.promptId,
+            style: refineData.style || "Cinematic Color Grade",
+            videoModificationPrompt: refinedText,
+            videoReference: finalVideoKey || "",
+            imageReference: finalImageKey || "",
+            videoReferenceKey: finalVideoKey || "",
+            imageReferenceKey: finalImageKey || "",
+            videoFileName: videoFile?.name || "input_video.mp4",
+            imageFileName: imageFile?.name || "image_reference.png",
+            videoPreviewUrl: videoPreview,
+            imagePreviewUrl: imagePreview,
+            audio: audioEnabled,
+            resolution: "720p",
+            aspectRatio: "16:9",
+            duration: 5,
+            refineData,
+          },
+        });
+      } else {
+        const errorMsg = resBody?.message || "Failed to refine prompt. Please try again.";
+        toast.error(errorMsg);
+      }
     } catch (err) {
       console.error("Continue error:", err);
-      const msg = err?.response?.data?.message || err?.message || "Failed to process uploads.";
+      const msg = err?.response?.data?.message || err?.message || "Failed to process prompt refinement.";
       toast.error(msg);
     } finally {
       setIsSubmitting(false);
@@ -671,7 +706,7 @@ const CreateAiVideoEdit = () => {
             fullWidth
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe the base video scene or flyover details..."
+            placeholder="Describe your video scene in detail (e.g. A cinematic drone flyover of a lush mangrove forest at sunrise, with misty waterways and golden sunlight filtering through dense tree canopy, camera moving forward smoothly)..."
             sx={{
               "& .MuiOutlinedInput-root": {
                 minHeight: { xs: "110px", sm: "120px" },
@@ -698,14 +733,28 @@ const CreateAiVideoEdit = () => {
                 height: "100% !important",
                 overflow: "auto !important",
                 fontFamily: "Inter, sans-serif",
+                lineHeight: 1.5,
               },
               "& .MuiInputBase-input::placeholder": {
                 color: "#9CA3AF",
                 opacity: 1,
-                fontSize: { xs: "12px", sm: "14px" },
+                fontSize: { xs: "12px", sm: "13.5px" },
+                lineHeight: 1.45,
               },
             }}
           />
+
+          <Typography
+            sx={{
+              fontFamily: "Inter, sans-serif",
+              fontSize: { xs: "11px", sm: "12px" },
+              color: "#6B7280",
+              mt: 0.8,
+              lineHeight: 1.4,
+            }}
+          >
+            💡 <strong>Tip:</strong> Describe the environment, lighting, camera angle/movement, and subject of your video so AI can edit it accurately.
+          </Typography>
         </Box>
 
         {/* Audio Toggle & Continue Button */}
