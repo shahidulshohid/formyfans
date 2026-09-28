@@ -17,7 +17,6 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import AddIcon from "@mui/icons-material/Add";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
-import FlashOnIcon from "@mui/icons-material/FlashOn";
 import {
   CardCvcElement,
   CardExpiryElement,
@@ -80,7 +79,6 @@ const AiCreditStripeForm = ({
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
-  const [fastProcessing, setFastProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
   // Standard Stripe Card Payment
@@ -136,58 +134,6 @@ const AiCreditStripeForm = ({
       toast.error(msg);
     } finally {
       setProcessing(false);
-    }
-  };
-
-  // Direct confirm via POST https://api.stripe.com/v1/payment_intents/{{paymentIntentId}}/confirm
-  const handleDirectConfirm = async () => {
-    if (!paymentIntentId && !clientSecret) {
-      toast.error("Payment Intent ID is missing.");
-      return;
-    }
-
-    const intentId =
-      paymentIntentId ||
-      (clientSecret?.includes("_secret_") ? clientSecret.split("_secret_")[0] : "");
-
-    setFastProcessing(true);
-    setErrorMsg(null);
-
-    try {
-      const returnUrl =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/return`
-          : "https://localhost:5009/return";
-
-      const res = await confirmStripePaymentIntent(intentId, {
-        payment_method: "pm_card_visa",
-        return_url: returnUrl,
-        client_secret: clientSecret,
-      });
-
-      if (res.ok && (res.data?.status === "succeeded" || res.data?.id)) {
-        toast.success("AI Credits purchased successfully!");
-        onSuccess?.({
-          paymentIntentId: res.data.id || intentId,
-          credits,
-          amount,
-          status: res.data.status,
-          directConfirmData: res.data,
-        });
-      } else {
-        const errorText =
-          res.data?.error?.message ||
-          res.data?.message ||
-          "Payment confirmation failed";
-        setErrorMsg(errorText);
-        toast.error(errorText);
-      }
-    } catch (err) {
-      const msg = err?.message || "Confirmation failed";
-      setErrorMsg(msg);
-      toast.error(msg);
-    } finally {
-      setFastProcessing(false);
     }
   };
 
@@ -303,38 +249,10 @@ const AiCreditStripeForm = ({
           )}
         </Button>
 
-        {/* Quick Test Pay Button using pm_card_visa */}
-        <Button
-          fullWidth
-          variant="outlined"
-          onClick={handleDirectConfirm}
-          disabled={processing || fastProcessing}
-          startIcon={!fastProcessing && <FlashOnIcon sx={{ fontSize: 18, color: "#FF1572" }} />}
-          sx={{
-            borderColor: "#FF1572",
-            color: "#FF1572",
-            borderRadius: "12px",
-            py: 1.1,
-            fontSize: "13px",
-            fontWeight: 600,
-            textTransform: "none",
-            "&:hover": {
-              borderColor: "#FF1572",
-              bgcolor: "#FFF0F5",
-            },
-          }}
-        >
-          {fastProcessing ? (
-            <CircularProgress size={20} sx={{ color: "#FF1572" }} />
-          ) : (
-            "Instant Confirm (pm_card_visa)"
-          )}
-        </Button>
-
         <Button
           fullWidth
           onClick={onBack}
-          disabled={processing || fastProcessing}
+          disabled={processing}
           sx={{
             color: "#6B7280",
             textTransform: "none",
