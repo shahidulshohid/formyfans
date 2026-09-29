@@ -170,6 +170,11 @@ const CreateAiVideoEdit = () => {
       return;
     }
 
+    if (!prompt.trim()) {
+      toast.error("Please enter a video scene prompt / description.");
+      return;
+    }
+
     if (videoUploading || imageUploading) {
       toast.info("Files are still uploading. Please wait a moment.");
       return;
@@ -198,7 +203,7 @@ const CreateAiVideoEdit = () => {
         setImageUploading(false);
       }
 
-      const finalPrompt = prompt.trim() || DEFAULT_TIGER_MODIFICATION_PROMPT;
+      const finalPrompt = prompt.trim();
 
       // Call /ai/prompts/refine API for VIDEO_EDIT
       const payload = {
