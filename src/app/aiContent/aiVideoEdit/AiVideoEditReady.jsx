@@ -31,6 +31,22 @@ import { downloadMedia } from "../../../api/aiContent/downloadMedia";
 
 const DEFAULT_SAMPLE_VIDEO_THUMB = sampleAirplaneVideoThumb;
 
+const getCssAspectRatio = (ratio) => {
+  switch (ratio) {
+    case "1:1":
+      return "1 / 1";
+    case "4:3":
+      return "4 / 3";
+    case "3:4":
+      return "3 / 4";
+    case "9:16":
+      return "9 / 16";
+    case "16:9":
+    default:
+      return "16 / 9";
+  }
+};
+
 const AiVideoEditReady = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -189,16 +205,34 @@ const AiVideoEditReady = () => {
       setIsRetrying(true);
       setGenerationStatus("processing");
       setProgress(5);
-      setStatusMessage("Starting AI video edit retry...");
+      const videoRefKey =
+        creationData.videoReference || creationData.videoReferenceKey;
+      if (!videoRefKey) {
+        toast.error("Please add the video you want to edit.");
+        setIsRetrying(false);
+        return;
+      }
+
+      const validRes = creationData.resolution === "480p" ? "480p" : "720p";
+      const validDuration = [5, 10, 15].includes(Number(creationData.duration))
+        ? Number(creationData.duration)
+        : 5;
 
       const payload = {
         type: "VIDEO_EDIT",
         prompt: creationData.prompt || creationData.originalPrompt,
         videoModificationPrompt: creationData.videoModificationPrompt,
-        videoReference: creationData.videoReference || creationData.videoReferenceKey,
-        imageReference: creationData.imageReference || creationData.imageReferenceKey,
+        videoReference: videoRefKey,
+        resolution: validRes,
+        aspectRatio: creationData.aspectRatio || "16:9",
+        duration: validDuration,
         audio: creationData.audio !== undefined ? Boolean(creationData.audio) : true,
       };
+
+      if (creationData.imageReference || creationData.imageReferenceKey) {
+        payload.imageReference =
+          creationData.imageReference || creationData.imageReferenceKey;
+      }
 
       const response = await createAiGeneration(payload);
       const resBody = response?.data;
@@ -356,10 +390,15 @@ const AiVideoEditReady = () => {
           <Box
             ref={playerContainerRef}
             sx={{
-              width: { xs: "100%", sm: "420px", md: "520px" },
-              maxWidth: "520px",
-              aspectRatio: isFullscreen ? "auto" : "16 / 9",
-              minHeight: { xs: "280px", sm: "320px", md: "360px" },
+              width: "100%",
+              maxWidth:
+                creationData.aspectRatio === "9:16" || creationData.aspectRatio === "3:4"
+                  ? "360px"
+                  : creationData.aspectRatio === "1:1"
+                  ? "440px"
+                  : "520px",
+              aspectRatio: isFullscreen ? "auto" : getCssAspectRatio(creationData.aspectRatio),
+              minHeight: isFullscreen ? "100vh" : { xs: "280px", sm: "320px", md: "360px" },
               borderRadius: isFullscreen ? "0px" : "16px",
               overflow: "hidden",
               boxShadow: "0px 8px 30px rgba(0, 0, 0, 0.15)",

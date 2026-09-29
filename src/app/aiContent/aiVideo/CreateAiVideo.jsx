@@ -19,22 +19,20 @@ import { connectAiSocket } from "../../../api/aiContent/aiSocket";
 const resolutions = [
   { id: "480p", label: "480p" },
   { id: "720p", label: "720p" },
-  { id: "1080p", label: "1080p" },
 ];
 
 const aspectRatios = [
   { id: "1:1", label: "1 : 1" },
+  { id: "4:3", label: "4 : 3" },
+  { id: "3:4", label: "3 : 4" },
   { id: "16:9", label: "16 : 9" },
   { id: "9:16", label: "9 : 16" },
-  { id: "4:5", label: "4 : 5" },
 ];
 
 const durations = [
   { id: "5", label: "5" },
   { id: "10", label: "10" },
   { id: "15", label: "15" },
-  { id: "20", label: "20" },
-  { id: "30", label: "30" },
 ];
 
 const CreateAiVideo = () => {
@@ -374,7 +372,7 @@ const CreateAiVideo = () => {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
+              gridTemplateColumns: "repeat(2, 1fr)",
               gap: { xs: 1, sm: 1.8 },
             }}
           >
@@ -448,8 +446,8 @@ const CreateAiVideo = () => {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: { xs: 0.8, sm: 1.8 },
+              gridTemplateColumns: { xs: "repeat(3, 1fr)", sm: "repeat(5, 1fr)" },
+              gap: { xs: 1, sm: 1.5 },
             }}
           >
             {aspectRatios.map((item) => {
@@ -522,8 +520,8 @@ const CreateAiVideo = () => {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: "repeat(5, 1fr)",
-              gap: { xs: 0.8, sm: 1.8 },
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: { xs: 1, sm: 1.8 },
             }}
           >
             {durations.map((item) => {

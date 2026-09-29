@@ -27,6 +27,25 @@ export const DEFAULT_SUNDARBANS_PROMPT =
 export const DEFAULT_TIGER_MODIFICATION_PROMPT =
   "Add a realistic Royal Bengal tiger from the provided image reference naturally into the existing Sundarbans scene. Preserve the tiger's distinctive orange coat, black stripes, facial features, body proportions, and overall appearance from the reference image. Place the tiger naturally within the mangrove vegetation near the misty waterways, making it feel like it was genuinely present in the original footage. Ensure realistic scale, perspective, lighting, shadows, reflections, depth, and interaction with the surrounding environment. Match the tiger with the warm golden sunrise lighting, tropical haze, lush green mangroves, and cinematic atmosphere of the existing video. Keep the original drone camera movement, composition, environment, duration, resolution, and overall visual style unchanged. The tiger should blend seamlessly into the footage without looking AI-generated, composited, or artificially inserted. The final result should resemble authentic cinematic wildlife footage of a Royal Bengal tiger in the Sundarbans.";
 
+const resolutions = [
+  { id: "480p", label: "480p" },
+  { id: "720p", label: "720p" },
+];
+
+const aspectRatios = [
+  { id: "1:1", label: "1 : 1" },
+  { id: "4:3", label: "4 : 3" },
+  { id: "3:4", label: "3 : 4" },
+  { id: "16:9", label: "16 : 9" },
+  { id: "9:16", label: "9 : 16" },
+];
+
+const durations = [
+  { id: "5", label: "5" },
+  { id: "10", label: "10" },
+  { id: "15", label: "15" },
+];
+
 const CreateAiVideoEdit = () => {
   const navigate = useNavigate();
 
@@ -49,8 +68,11 @@ const CreateAiVideoEdit = () => {
   const [imageProgress, setImageProgress] = useState(0);
   const [imagePreview, setImagePreview] = useState(null);
 
-  // Prompt and Audio State
+  // Prompt, Settings, and Audio State
   const [prompt, setPrompt] = useState("");
+  const [selectedResolution, setSelectedResolution] = useState("720p");
+  const [selectedAspectRatio, setSelectedAspectRatio] = useState("16:9");
+  const [selectedDuration, setSelectedDuration] = useState("5");
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -143,8 +165,8 @@ const CreateAiVideoEdit = () => {
 
   // Continue to Script Step
   const handleContinue = async () => {
-    if (!prompt.trim()) {
-      toast.error("Please describe your video scene before continuing.");
+    if (!videoFile && !videoKey) {
+      toast.error("Please add the video you want to edit.");
       return;
     }
 
@@ -176,7 +198,7 @@ const CreateAiVideoEdit = () => {
         setImageUploading(false);
       }
 
-      const finalPrompt = prompt.trim();
+      const finalPrompt = prompt.trim() || DEFAULT_TIGER_MODIFICATION_PROMPT;
 
       // Call /ai/prompts/refine API for VIDEO_EDIT
       const payload = {
@@ -184,8 +206,9 @@ const CreateAiVideoEdit = () => {
         prompt: finalPrompt,
         style: "Cinematic Color Grade",
         settings: {
-          resolution: "720p",
-          aspectRatio: "16:9",
+          resolution: selectedResolution,
+          aspectRatio: selectedAspectRatio,
+          duration: selectedDuration,
         },
       };
 
@@ -217,9 +240,9 @@ const CreateAiVideoEdit = () => {
             videoPreviewUrl: videoPreview,
             imagePreviewUrl: imagePreview,
             audio: audioEnabled,
-            resolution: "720p",
-            aspectRatio: "16:9",
-            duration: 5,
+            resolution: selectedResolution,
+            aspectRatio: selectedAspectRatio,
+            duration: selectedDuration,
             refineData,
           },
         });
@@ -755,6 +778,228 @@ const CreateAiVideoEdit = () => {
           >
             💡 <strong>Tip:</strong> Describe the environment, lighting, camera angle/movement, and subject of your video so AI can edit it accurately.
           </Typography>
+        </Box>
+
+        {/* Resolution Section */}
+        <Box sx={{ mb: { xs: 2.5, sm: 3.5 } }}>
+          <Typography
+            component="label"
+            sx={{
+              display: "block",
+              fontFamily: "Inter, sans-serif",
+              fontWeight: 500,
+              fontSize: { xs: "14px", sm: "15px", md: "16px" },
+              lineHeight: "20px",
+              letterSpacing: "-0.5px",
+              color: "#000000",
+              mb: 1.2,
+            }}
+          >
+            Resolution
+            <Box
+              component="span"
+              sx={{
+                fontFamily: "Inter, sans-serif",
+                fontWeight: 500,
+                fontSize: { xs: "14px", sm: "16px" },
+                lineHeight: "20px",
+                color: "#FF1572",
+                ml: 0.4,
+              }}
+            >
+              *
+            </Box>
+          </Typography>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, 1fr)",
+              gap: { xs: 1, sm: 1.8 },
+            }}
+          >
+            {resolutions.map((item) => {
+              const isSelected = selectedResolution === item.id;
+
+              return (
+                <Box
+                  key={item.id}
+                  onClick={() => setSelectedResolution(item.id)}
+                  sx={{
+                    bgcolor: isSelected ? "#FF1572" : "#EBECEF",
+                    color: isSelected ? "#FFFFFF" : "#000000",
+                    borderRadius: "12px",
+                    py: { xs: 1.1, sm: 1.3 },
+                    px: { xs: 1, sm: 2 },
+                    textAlign: "center",
+                    cursor: "pointer",
+                    userSelect: "none",
+                    transition: "all 0.2s ease-in-out",
+                    fontFamily: "Inter, sans-serif",
+                    fontWeight: 500,
+                    fontSize: { xs: "12px", sm: "14px", md: "15px" },
+                    lineHeight: "140%",
+                    letterSpacing: "-0.5px",
+                    whiteSpace: "nowrap",
+                    "&:hover": {
+                      bgcolor: isSelected ? "#FF1572" : "#DFE1E6",
+                      transform: "translateY(-1px)",
+                    },
+                  }}
+                >
+                  {item.label}
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+
+        {/* Aspect Ratio Section */}
+        <Box sx={{ mb: { xs: 2.5, sm: 3.5 } }}>
+          <Typography
+            component="label"
+            sx={{
+              display: "block",
+              fontFamily: "Inter, sans-serif",
+              fontWeight: 500,
+              fontSize: { xs: "14px", sm: "15px", md: "16px" },
+              lineHeight: "20px",
+              letterSpacing: "-0.5px",
+              color: "#000000",
+              mb: 1.2,
+            }}
+          >
+            Aspect Ratio
+            <Box
+              component="span"
+              sx={{
+                fontFamily: "Inter, sans-serif",
+                fontWeight: 500,
+                fontSize: { xs: "14px", sm: "16px" },
+                lineHeight: "20px",
+                color: "#FF1572",
+                ml: 0.4,
+              }}
+            >
+              *
+            </Box>
+          </Typography>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "repeat(3, 1fr)", sm: "repeat(5, 1fr)" },
+              gap: { xs: 1, sm: 1.5 },
+            }}
+          >
+            {aspectRatios.map((item) => {
+              const isSelected = selectedAspectRatio === item.id;
+
+              return (
+                <Box
+                  key={item.id}
+                  onClick={() => setSelectedAspectRatio(item.id)}
+                  sx={{
+                    bgcolor: isSelected ? "#FF1572" : "#EBECEF",
+                    color: isSelected ? "#FFFFFF" : "#000000",
+                    borderRadius: "12px",
+                    py: { xs: 1.1, sm: 1.3 },
+                    px: { xs: 0.5, sm: 2 },
+                    textAlign: "center",
+                    cursor: "pointer",
+                    userSelect: "none",
+                    transition: "all 0.2s ease-in-out",
+                    fontFamily: "Inter, sans-serif",
+                    fontWeight: 500,
+                    fontSize: { xs: "12px", sm: "14px", md: "15px" },
+                    lineHeight: "140%",
+                    letterSpacing: "-0.5px",
+                    whiteSpace: "nowrap",
+                    "&:hover": {
+                      bgcolor: isSelected ? "#FF1572" : "#DFE1E6",
+                      transform: "translateY(-1px)",
+                    },
+                  }}
+                >
+                  {item.label}
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+
+        {/* Duration Section */}
+        <Box sx={{ mb: { xs: 3.5, sm: 4.5 } }}>
+          <Typography
+            component="label"
+            sx={{
+              display: "block",
+              fontFamily: "Inter, sans-serif",
+              fontWeight: 500,
+              fontSize: { xs: "14px", sm: "15px", md: "16px" },
+              lineHeight: "20px",
+              letterSpacing: "-0.5px",
+              color: "#000000",
+              mb: 1.2,
+            }}
+          >
+            Duration
+            <Box
+              component="span"
+              sx={{
+                fontFamily: "Inter, sans-serif",
+                fontWeight: 500,
+                fontSize: { xs: "14px", sm: "16px" },
+                lineHeight: "20px",
+                color: "#FF1572",
+                ml: 0.4,
+              }}
+            >
+              *
+            </Box>
+          </Typography>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: { xs: 1, sm: 1.8 },
+            }}
+          >
+            {durations.map((item) => {
+              const isSelected = selectedDuration === item.id;
+
+              return (
+                <Box
+                  key={item.id}
+                  onClick={() => setSelectedDuration(item.id)}
+                  sx={{
+                    bgcolor: isSelected ? "#FF1572" : "#EBECEF",
+                    color: isSelected ? "#FFFFFF" : "#000000",
+                    borderRadius: "12px",
+                    py: { xs: 1.1, sm: 1.3 },
+                    px: { xs: 1, sm: 2 },
+                    textAlign: "center",
+                    cursor: "pointer",
+                    userSelect: "none",
+                    transition: "all 0.2s ease-in-out",
+                    fontFamily: "Inter, sans-serif",
+                    fontWeight: 500,
+                    fontSize: { xs: "12px", sm: "14px", md: "15px" },
+                    lineHeight: "140%",
+                    letterSpacing: "-0.5px",
+                    whiteSpace: "nowrap",
+                    "&:hover": {
+                      bgcolor: isSelected ? "#FF1572" : "#DFE1E6",
+                      transform: "translateY(-1px)",
+                    },
+                  }}
+                >
+                  {item.label}
+                </Box>
+              );
+            })}
+          </Box>
         </Box>
 
         {/* Audio Toggle & Continue Button */}

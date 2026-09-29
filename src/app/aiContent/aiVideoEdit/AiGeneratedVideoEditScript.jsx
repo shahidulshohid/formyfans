@@ -58,14 +58,19 @@ const AiGeneratedVideoEditScript = () => {
 
     setRegenLoading(true);
     try {
+      const validRes = creationData.resolution === "480p" ? "480p" : "720p";
+      const validDuration = [5, 10, 15].includes(Number(creationData.duration))
+        ? Number(creationData.duration)
+        : 5;
+
       const payload = {
         type: "VIDEO_EDIT",
         prompt: rawPrompt,
         style: creationData.style || "Cinematic Color Grade",
         settings: {
-          resolution: creationData.resolution || "720p",
+          resolution: validRes,
           aspectRatio: creationData.aspectRatio || "16:9",
-          duration: creationData.duration || "5",
+          duration: validDuration,
         },
       };
 
@@ -100,8 +105,10 @@ const AiGeneratedVideoEditScript = () => {
   // Trigger POST /ai/generations with type: "VIDEO_EDIT"
   const handleGenerateVideo = async () => {
     const finalModScript = scriptText.trim();
-    if (!finalModScript) {
-      toast.error("Please enter or generate a modification instruction prompt first.");
+
+    const videoRefKey = creationData.videoReference || creationData.videoReferenceKey;
+    if (!videoRefKey) {
+      toast.error("Please add the video you want to edit.");
       return;
     }
 
@@ -110,16 +117,23 @@ const AiGeneratedVideoEditScript = () => {
     const basePrompt =
       creationData.originalPrompt || creationData.prompt || finalModScript;
 
+    const validRes = creationData.resolution === "480p" ? "480p" : "720p";
+    const validDuration = [5, 10, 15].includes(Number(creationData.duration))
+      ? Number(creationData.duration)
+      : 5;
+
     const payload = {
       type: "VIDEO_EDIT",
       prompt: basePrompt,
       videoModificationPrompt: finalModScript,
+      resolution: validRes,
+      aspectRatio: creationData.aspectRatio || "16:9",
+      duration: validDuration,
       audio: creationData.audio !== undefined ? Boolean(creationData.audio) : true,
     };
 
-    if (creationData.videoReference || creationData.videoReferenceKey) {
-      payload.videoReference =
-        creationData.videoReference || creationData.videoReferenceKey;
+    if (videoRefKey) {
+      payload.videoReference = videoRefKey;
     }
     if (creationData.imageReference || creationData.imageReferenceKey) {
       payload.imageReference =
@@ -158,6 +172,9 @@ const AiGeneratedVideoEditScript = () => {
             videoModificationPrompt: finalModScript,
             videoReference: payload.videoReference,
             imageReference: payload.imageReference,
+            resolution: creationData.resolution || "720p",
+            aspectRatio: creationData.aspectRatio || "16:9",
+            duration: creationData.duration || "5",
             audio: payload.audio,
             videoUrl:
               genData?.videoUrl || genData?.outputUrl || genData?.mediaUrl || null,

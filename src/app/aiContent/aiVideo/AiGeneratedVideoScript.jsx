@@ -61,14 +61,19 @@ const AiGeneratedVideoScript = () => {
         promptType = "VIDEO_EDIT";
       }
 
+      const validRes = creationData.resolution === "480p" ? "480p" : "720p";
+      const validDuration = [5, 10, 15].includes(Number(creationData.duration))
+        ? Number(creationData.duration)
+        : 5;
+
       const payload = {
         type: promptType,
         prompt: rawPrompt,
         style: creationData.style || "Cinematic, Photorealistic",
         settings: {
-          resolution: creationData.resolution || "720p",
+          resolution: validRes,
           aspectRatio: creationData.aspectRatio || "16:9",
-          duration: creationData.duration || "5",
+          duration: validDuration,
         },
       };
 
@@ -118,17 +123,19 @@ const AiGeneratedVideoScript = () => {
       genType = "VIDEO_EDIT";
     }
 
+    const validRes = creationData.resolution === "480p" ? "480p" : "720p";
+    const validDuration = [5, 10, 15].includes(Number(creationData.duration))
+      ? Number(creationData.duration)
+      : 5;
+
     const payload = {
       type: genType,
       prompt: finalPrompt,
-      resolution: creationData.resolution || "720p",
+      resolution: validRes,
       aspectRatio: creationData.aspectRatio || "16:9",
+      duration: validDuration,
       audio: creationData.audio !== undefined ? Boolean(creationData.audio) : true,
     };
-
-    if (creationData.duration) {
-      payload.duration = Number(creationData.duration) || creationData.duration;
-    }
     if (creationData.videoReference || creationData.videoReferenceKey) {
       payload.videoReference = creationData.videoReference || creationData.videoReferenceKey;
     }

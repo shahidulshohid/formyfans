@@ -8,7 +8,7 @@ import { AI_CONTENT_ENDPOINTS } from "../endpoints";
  * @param {string} payload.type - "IMAGE" | "VIDEO" | "VIDEO_EDIT"
  * @param {string} payload.prompt - User's input prompt description
  * @param {string} [payload.style] - Style description e.g. "Cinematic, Photorealistic"
- * @param {Object} [payload.settings] - Settings like { resolution: "1080p", aspectRatio: "16:9" }
+ * @param {Object} [payload.settings] - Settings like { resolution: "720p", aspectRatio: "16:9" }
  * @returns {Promise<Object>} API response with { promptId, type, originalPrompt, refinedPrompt, style, ... }
  */
 export const refineAiPrompt = async (payload) => {

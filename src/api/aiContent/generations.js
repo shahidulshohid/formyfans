@@ -8,7 +8,7 @@ import { AI_CONTENT_ENDPOINTS } from "../endpoints";
  * @param {string} payload.type - "IMAGE" | "VIDEO" | "VIDEO_EDIT"
  * @param {string} payload.prompt - Prompt / script text to generate
  * @param {string} payload.resolution - "480p" | "720p" | "1080p"
- * @param {string} payload.aspectRatio - "1:1" | "16:9" | "9:16" | "4:5"
+ * @param {string} payload.aspectRatio - "1:1" | "4:3" | "3:4" | "16:9" | "9:16"
  * @returns {Promise<Object>} API response with { generationId, contentId, type, status, progress, reservedCredits, prompt, ... }
  */
 export const createAiGeneration = async (payload) => {

@@ -23,16 +23,17 @@ const resolutions = [
 
 const aspectRatios = [
   { id: "1:1", label: "1 : 1" },
+  { id: "4:3", label: "4 : 3" },
+  { id: "3:4", label: "3 : 4" },
   { id: "16:9", label: "16 : 9" },
   { id: "9:16", label: "9 : 16" },
-  { id: "4:5", label: "4 : 5" },
 ];
 
 const CreateAiImage = () => {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState("Cinematic, Photorealistic");
-  const [selectedResolution, setSelectedResolution] = useState("1080p");
+  const [selectedResolution, setSelectedResolution] = useState("720p");
   const [selectedAspectRatio, setSelectedAspectRatio] = useState("16:9");
   const [loading, setLoading] = useState(false);
 
@@ -423,8 +424,8 @@ const CreateAiImage = () => {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: { xs: 0.8, sm: 1.8 },
+              gridTemplateColumns: { xs: "repeat(3, 1fr)", sm: "repeat(5, 1fr)" },
+              gap: { xs: 1, sm: 1.5 },
             }}
           >
             {aspectRatios.map((item) => {

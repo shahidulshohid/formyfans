@@ -56,7 +56,7 @@ const AiGeneratedScript = () => {
         prompt: rawPrompt,
         style: creationData.style || "Cinematic, Photorealistic",
         settings: {
-          resolution: creationData.resolution || "1080p",
+          resolution: creationData.resolution || "720p",
           aspectRatio: creationData.aspectRatio || "16:9",
         },
       };
@@ -102,7 +102,7 @@ const AiGeneratedScript = () => {
     const payload = {
       type: "IMAGE",
       prompt: finalPrompt,
-      resolution: creationData.resolution || "1080p",
+      resolution: creationData.resolution || "720p",
       aspectRatio: creationData.aspectRatio || "16:9",
     };
 
@@ -125,7 +125,7 @@ const AiGeneratedScript = () => {
             status: genData.status,
             progress: genData.progress,
             prompt: genData.prompt || finalPrompt,
-            resolution: creationData.resolution || "1080p",
+            resolution: creationData.resolution || "720p",
             aspectRatio: creationData.aspectRatio || "16:9",
             imageUrl: genData.imageUrl || genData.outputUrl || null,
           },

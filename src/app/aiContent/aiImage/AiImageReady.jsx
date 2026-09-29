@@ -25,6 +25,22 @@ import { downloadMedia } from "../../../api/aiContent/downloadMedia";
 
 const DEFAULT_SAMPLE_IMAGE = sampleAirplaneVideoThumb;
 
+const getCssAspectRatio = (ratio) => {
+  switch (ratio) {
+    case "1:1":
+      return "1 / 1";
+    case "4:3":
+      return "4 / 3";
+    case "3:4":
+      return "3 / 4";
+    case "9:16":
+      return "9 / 16";
+    case "16:9":
+    default:
+      return "16 / 9";
+  }
+};
+
 const AiImageReady = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -250,12 +266,17 @@ const AiImageReady = () => {
           <Box
             sx={{
               width: "100%",
-              maxWidth: "520px",
+              maxWidth:
+                creationData.aspectRatio === "9:16" || creationData.aspectRatio === "3:4"
+                  ? "360px"
+                  : creationData.aspectRatio === "1:1"
+                  ? "440px"
+                  : "520px",
               borderRadius: "12px",
               overflow: "hidden",
               boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.08)",
               bgcolor: "#F9FAFB",
-              aspectRatio: "16 / 9",
+              aspectRatio: getCssAspectRatio(creationData.aspectRatio),
               display: "flex",
               flexDirection: "column",
               alignItems: "center",

@@ -33,6 +33,7 @@ import {
   getCreditPricing,
   purchaseAiCredits,
 } from "../../api/aiContent";
+import { createSubscriptionClientSecret } from "../../api/modules/subscription";
 import { isStripeKeyConfigured, stripePromise } from "../../config/stripe";
 import useUserStore from "../../zustand/userUserStore";
 
@@ -144,7 +145,7 @@ const AiCreditStripeForm = ({
           <IconButton
             size="small"
             onClick={onBack}
-            disabled={processing || fastProcessing}
+            disabled={processing}
             sx={{ p: 0.5, color: "#555555", "&:hover": { bgcolor: "#F3F4F6" } }}
           >
             <ArrowBackIcon fontSize="small" />
@@ -224,7 +225,7 @@ const AiCreditStripeForm = ({
           fullWidth
           type="submit"
           variant="contained"
-          disabled={processing || fastProcessing || !stripe}
+          disabled={processing || !stripe}
           startIcon={!processing && <LockOutlinedIcon sx={{ fontSize: 18 }} />}
           sx={{
             bgcolor: "#FF1572",
@@ -401,46 +402,94 @@ const AiSubscriptionModal = ({
     return (num * pricePerCredit).toFixed(2);
   };
 
-  // Purchase handler calling /credits/purchase
+  // Purchase handler calling /credits/purchase with fallback to /auth/subscription/create-client-secret
   const handlePurchase = async () => {
     const finalCredits =
       typeof creditAmount === "number" ? creditAmount : minCredits;
+    const finalPrice = parseFloat(getDisplayPrice()) || 10;
     setPurchaseLoading(true);
 
+    let extractedSecret = null;
+    let pIntentId = null;
+    let purchasePayload = null;
+
+    // 1. Try /credits/purchase first
     try {
       const response = await purchaseAiCredits({ credits: finalCredits });
       const body = response?.data;
+      const data = body?.data || body;
 
-      if (body?.status === "success" && body?.data) {
-        const purchaseData = body.data;
-        setPurchaseResult(purchaseData);
+      extractedSecret =
+        data?.clientSecret ||
+        data?.client_secret ||
+        data?.paymentIntent?.client_secret ||
+        data?.paymentIntent?.clientSecret ||
+        body?.clientSecret ||
+        body?.client_secret;
 
-        // If clientSecret is returned, proceed to card payment step
-        if (purchaseData?.clientSecret) {
-          setStep("PAYMENT");
-        } else {
-          // If direct flow completed
-          toast.success(body?.message || "AI Credits purchased successfully!");
-          if (onSubscribe) {
-            onSubscribe({
-              creditAmount: finalCredits,
-              price: getDisplayPrice(),
-              purchaseData,
-              pricingData,
-            });
-          }
-          setSubscriptionsTrue?.(true);
-          onClose?.();
-        }
-      } else {
-        toast.error(body?.message || "Failed to create credit purchase");
+      pIntentId =
+        data?.paymentIntentId ||
+        data?.paymentIntent?.id ||
+        data?.id ||
+        body?.paymentIntentId;
+
+      if (extractedSecret) {
+        purchasePayload = {
+          clientSecret: extractedSecret,
+          paymentIntentId: pIntentId,
+          credits: finalCredits,
+          priceUsd: finalPrice,
+          ...data,
+        };
       }
     } catch (err) {
-      toast.error(
-        err?.response?.data?.message || err?.message || "Purchase failed"
+      console.warn(
+        "purchaseAiCredits failed, attempting subscription secret fallback:",
+        err
       );
-    } finally {
-      setPurchaseLoading(false);
+    }
+
+    // 2. If clientSecret wasn't retrieved from purchaseAiCredits, fallback to createSubscriptionClientSecret
+    if (!extractedSecret) {
+      try {
+        const subRes = await createSubscriptionClientSecret({
+          amount: finalPrice,
+        });
+        const subData = subRes?.data;
+        if (subData?.clientSecret || subData?.data?.clientSecret) {
+          extractedSecret =
+            subData.clientSecret ||
+            subData.data?.clientSecret ||
+            subData.client_secret;
+          pIntentId =
+            subData.paymentIntentId ||
+            subData.data?.paymentIntentId ||
+            subData.id ||
+            null;
+          purchasePayload = {
+            clientSecret: extractedSecret,
+            paymentIntentId: pIntentId,
+            credits: finalCredits,
+            priceUsd: finalPrice,
+          };
+        }
+      } catch (fallbackErr) {
+        console.error(
+          "createSubscriptionClientSecret fallback failed:",
+          fallbackErr
+        );
+      }
+    }
+
+    setPurchaseLoading(false);
+
+    if (extractedSecret) {
+      setPurchaseResult(purchasePayload);
+      setStep("PAYMENT");
+    } else {
+      toast.error(
+        "Unable to start payment. Please check your network connection or try again."
+      );
     }
   };
 
@@ -546,6 +595,7 @@ const AiSubscriptionModal = ({
           stripePromise ? (
             <Elements
               stripe={stripePromise}
+              key={purchaseResult.clientSecret}
               options={{
                 clientSecret: purchaseResult.clientSecret,
               }}
