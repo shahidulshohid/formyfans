@@ -53,11 +53,16 @@ export const connectAiSocket = () => {
     } catch (e) {}
   }
 
-  console.log("[AI Socket] Connecting to:", socketUrl, "with Authorization header");
+  console.log("[AI Socket] Connecting to:", socketUrl, "with JWT Bearer token");
+
+  const authToken = token ? (token.startsWith("Bearer ") ? token : `Bearer ${token}`) : "";
 
   aiSocketInstance = io(socketUrl, {
+    auth: {
+      token: authToken,
+    },
     extraHeaders: {
-      Authorization: token ? `Bearer ${token}` : "",
+      Authorization: authToken,
     },
     transports: ["websocket", "polling"],
     reconnection: true,

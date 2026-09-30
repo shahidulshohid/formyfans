@@ -124,6 +124,8 @@ const AiGeneratedScript = () => {
             generationData: genData,
             status: genData.status,
             progress: genData.progress,
+            reservedCredits: genData.reservedCredits || 1,
+            creditsDeducted: genData.creditsDeducted || null,
             prompt: genData.prompt || finalPrompt,
             resolution: creationData.resolution || "720p",
             aspectRatio: creationData.aspectRatio || "16:9",

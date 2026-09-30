@@ -80,8 +80,6 @@ function AppContent() {
 
   useEffect(() => {
     if (socket && user) {
-      socket.emit("user_connected", { userId: user?._id });
-
       const handleEmitNewConversation = (data) => {
         addNewConversation(data);
       };
@@ -95,9 +93,7 @@ function AppContent() {
       };
 
       socket.on("new_conversation", handleEmitNewConversation);
-
       socket.on("update_conversation", handleEmitUpdateConversation);
-
       socket.on(
         "reset_unread_messages_count",
         handleEmitResetUnreadMessagesCount,

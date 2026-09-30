@@ -22,6 +22,10 @@ import {
   extractAiMediaUrl,
 } from "../../../api/aiContent/aiSocket";
 import { downloadMedia } from "../../../api/aiContent/downloadMedia";
+import { syncUserFromServer } from "../../../utils/syncUser";
+import HourglassTopRoundedIcon from "@mui/icons-material/HourglassTopRounded";
+import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlineRounded";
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 
 const DEFAULT_SAMPLE_IMAGE = sampleAirplaneVideoThumb;
 
@@ -54,6 +58,12 @@ const AiImageReady = () => {
     creationData.status || (creationData.generationId ? "processing" : "completed")
   );
   const [progress, setProgress] = useState(creationData.progress || 5);
+  const [reservedCredits, setReservedCredits] = useState(
+    creationData.reservedCredits ?? creationData.generationData?.reservedCredits ?? 1
+  );
+  const [creditsDeducted, setCreditsDeducted] = useState(
+    creationData.creditsDeducted ?? creationData.generationData?.creditsDeducted ?? null
+  );
   const [statusMessage, setStatusMessage] = useState(
     creationData.message || "Your image is being created by AI. Please check back shortly."
   );
@@ -69,6 +79,8 @@ const AiImageReady = () => {
         if (data?.status) setGenerationStatus(data.status);
         if (data?.progress !== undefined) setProgress(data.progress);
         if (data?.message) setStatusMessage(data.message);
+        if (data?.reservedCredits !== undefined) setReservedCredits(data.reservedCredits);
+        if (data?.creditsDeducted !== undefined) setCreditsDeducted(data.creditsDeducted);
       },
       onCompleted: (payload) => {
         const data = payload?.data || payload;
@@ -79,11 +91,19 @@ const AiImageReady = () => {
         }
         setGenerationStatus("completed");
         setProgress(100);
+        const finalDeducted =
+          data?.creditsDeducted ??
+          payload?.creditsDeducted ??
+          creationData.creditsDeducted ??
+          reservedCredits;
+        setCreditsDeducted(finalDeducted);
+        syncUserFromServer();
         toast.success(data?.message || payload?.message || "Your AI image is ready!");
       },
       onFailed: (payload) => {
         const data = payload?.data || payload;
         setGenerationStatus("failed");
+        syncUserFromServer();
         toast.error(
           data?.message || payload?.message || "Image generation failed. Please try again."
         );
@@ -93,7 +113,7 @@ const AiImageReady = () => {
     return () => {
       unsubscribe();
     };
-  }, [creationData.generationId, imageUrl]);
+  }, [creationData.generationId, imageUrl, reservedCredits, creationData.creditsDeducted]);
 
   // Poll GET /ai/generations/:generationId
   useEffect(() => {
@@ -113,6 +133,8 @@ const AiImageReady = () => {
         if (data.status) setGenerationStatus(data.status);
         if (data.progress !== undefined) setProgress(data.progress);
         if (data.message) setStatusMessage(data.message);
+        if (data.reservedCredits !== undefined) setReservedCredits(data.reservedCredits);
+        if (data.creditsDeducted !== undefined) setCreditsDeducted(data.creditsDeducted);
 
         // API returns mediaUrl on completion
         const foundUrl = extractAiMediaUrl(resBody) || data.mediaUrl || data.imageUrl;
@@ -123,10 +145,18 @@ const AiImageReady = () => {
           }
           setGenerationStatus("completed");
           setProgress(100);
+          const finalDeducted =
+            data.creditsDeducted ??
+            resBody?.creditsDeducted ??
+            creationData.creditsDeducted ??
+            reservedCredits;
+          setCreditsDeducted(finalDeducted);
+          syncUserFromServer();
           toast.success(resBody?.message || data.message || "Your AI image is ready!");
           if (intervalId) clearInterval(intervalId);
         } else if (data.status === "failed" || data.status === "error") {
           setGenerationStatus("failed");
+          syncUserFromServer();
           toast.error(data.message || "Image generation failed. Please try again.");
           if (intervalId) clearInterval(intervalId);
         }
@@ -143,7 +173,7 @@ const AiImageReady = () => {
       isMounted = false;
       if (intervalId) clearInterval(intervalId);
     };
-  }, [creationData.generationId, imageUrl]);
+  }, [creationData.generationId, imageUrl, reservedCredits, creationData.creditsDeducted]);
 
   const isProcessing = !imageUrl && generationStatus === "processing";
   const currentImage = imageUrl || DEFAULT_SAMPLE_IMAGE;
@@ -236,19 +266,101 @@ const AiImageReady = () => {
           {isProcessing ? "Your AI Image is Being Generated..." : "Your AI Image is Ready"}
         </Typography>
 
-        <Typography
+        <Box
           sx={{
-            fontFamily: "Inter, sans-serif",
-            color: "#737373",
-            fontSize: { xs: "13px", sm: "14px" },
-            fontWeight: 400,
-            mb: { xs: 3, sm: 3.5 },
+            display: "flex",
+            alignItems: { xs: "flex-start", sm: "center" },
+            justifyContent: "space-between",
+            flexDirection: { xs: "column", sm: "row" },
+            gap: 1.5,
+            mb: { xs: 2.5, sm: 3 },
           }}
         >
-          {isProcessing
-            ? "Please wait a moment while AI processes and brings your visual to life."
-            : "Review your generated content before publishing or downloading."}
-        </Typography>
+          <Typography
+            sx={{
+              fontFamily: "Inter, sans-serif",
+              color: "#737373",
+              fontSize: { xs: "13px", sm: "14px" },
+              fontWeight: 400,
+            }}
+          >
+            {isProcessing
+              ? "Please wait a moment while AI processes and brings your visual to life."
+              : "Review your generated content before publishing or downloading."}
+          </Typography>
+
+          {/* Credit Reservation / Final Deduction Indicator */}
+          {generationStatus === "processing" || isProcessing ? (
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.8,
+                bgcolor: "#FFFBEB",
+                border: "1px solid #FDE68A",
+                borderRadius: "24px",
+                px: 1.8,
+                py: 0.6,
+                color: "#92400E",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                fontFamily: "Inter, sans-serif",
+                boxShadow: "0 1px 3px rgba(245, 158, 11, 0.1)",
+                flexShrink: 0,
+              }}
+            >
+              <HourglassTopRoundedIcon sx={{ fontSize: "16px", color: "#F59E0B" }} />
+              <span>
+                Reserved: <strong>{reservedCredits}</strong> {reservedCredits === 1 ? "credit" : "credits"} (Hold)
+              </span>
+            </Box>
+          ) : generationStatus === "completed" ? (
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.8,
+                bgcolor: "#ECFDF5",
+                border: "1px solid #A7F3D0",
+                borderRadius: "24px",
+                px: 1.8,
+                py: 0.6,
+                color: "#065F46",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                fontFamily: "Inter, sans-serif",
+                boxShadow: "0 1px 3px rgba(16, 185, 129, 0.1)",
+                flexShrink: 0,
+              }}
+            >
+              <CheckCircleOutlineRoundedIcon sx={{ fontSize: "16px", color: "#10B981" }} />
+              <span>
+                Final Charge: <strong>{creditsDeducted ?? reservedCredits}</strong> {Number(creditsDeducted ?? reservedCredits) === 1 ? "credit" : "credits"} deducted
+              </span>
+            </Box>
+          ) : generationStatus === "failed" ? (
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.8,
+                bgcolor: "#FEF2F2",
+                border: "1px solid #FECACA",
+                borderRadius: "24px",
+                px: 1.8,
+                py: 0.6,
+                color: "#991B1B",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                fontFamily: "Inter, sans-serif",
+                flexShrink: 0,
+              }}
+            >
+              <CancelOutlinedIcon sx={{ fontSize: "16px", color: "#EF4444" }} />
+              <span>{reservedCredits} reserved credits released</span>
+            </Box>
+          ) : null}
+        </Box>
 
         {/* Image Preview Box */}
         <Box

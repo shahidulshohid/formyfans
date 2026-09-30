@@ -188,76 +188,86 @@ const AiContentBanner = () => {
 
         <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1, sm: 1.2, md: 1.5 }, flexShrink: 0 }}>
           {/* User-friendly Available Balance Pill */}
-          <Tooltip title="Your Available AI Credits (Click to buy more)" arrow placement="top">
-            <Box
-              onClick={() => setOpenSubscriptionModal(true)}
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: { xs: 0.6, sm: 0.8 },
-                bgcolor: "#FFFFFF",
-                border: "1.5px solid #FF157233",
-                borderRadius: "53px",
-                px: { xs: 1.2, sm: 1.6, md: 2 },
-                py: { xs: 0.5, sm: 0.7 },
-                height: { xs: "34px", sm: "38px", md: "40px" },
-                cursor: "pointer",
-                boxShadow: "0 1px 3px rgba(255, 20, 117, 0.08)",
-                transition: "all 0.2s ease-in-out",
-                userSelect: "none",
-                "&:hover": {
-                  borderColor: "#FF1572",
-                  bgcolor: "#FFF0F5",
-                  transform: "translateY(-1px)",
-                  boxShadow: "0 3px 8px rgba(255, 20, 117, 0.18)",
-                },
-              }}
-            >
-              <AutoAwesomeIcon
-                sx={{
-                  color: "#FF1572",
-                  fontSize: { xs: "14px", sm: "16px", md: "18px" },
-                }}
-              />
-              <Typography
-                sx={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: { xs: "11px", sm: "12.5px", md: "13px" },
-                  fontWeight: 600,
-                  color: "#333333",
-                  lineHeight: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.4,
-                  whiteSpace: "nowrap",
-                }}
-              >
+          {(() => {
+            const reservedCount = Number(balanceData?.reservedCredits ?? balanceData?.reserved ?? 0);
+            const tooltipTitle =
+              reservedCount > 0
+                ? `Available: ${getAvailableCredits().toLocaleString()} Credits | Reserved: ${reservedCount} Credits`
+                : "Your Available AI Credits (Click to buy more)";
+
+            return (
+              <Tooltip title={tooltipTitle} arrow placement="top">
                 <Box
-                  component="span"
+                  onClick={() => setOpenSubscriptionModal(true)}
                   sx={{
-                    color: "#FF1572",
-                    fontWeight: 700,
-                    fontSize: { xs: "12px", sm: "13px", md: "14px" },
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: { xs: 0.6, sm: 0.8 },
+                    bgcolor: "#FFFFFF",
+                    border: "1.5px solid #FF157233",
+                    borderRadius: "53px",
+                    px: { xs: 1.2, sm: 1.6, md: 2 },
+                    py: { xs: 0.5, sm: 0.7 },
+                    height: { xs: "34px", sm: "38px", md: "40px" },
+                    cursor: "pointer",
+                    boxShadow: "0 1px 3px rgba(255, 20, 117, 0.08)",
+                    transition: "all 0.2s ease-in-out",
+                    userSelect: "none",
+                    "&:hover": {
+                      borderColor: "#FF1572",
+                      bgcolor: "#FFF0F5",
+                      transform: "translateY(-1px)",
+                      boxShadow: "0 3px 8px rgba(255, 20, 117, 0.18)",
+                    },
                   }}
                 >
-                  {loadingBalance && balanceData === null
-                    ? "..."
-                    : getAvailableCredits().toLocaleString()}
+                  <AutoAwesomeIcon
+                    sx={{
+                      color: "#FF1572",
+                      fontSize: { xs: "14px", sm: "16px", md: "18px" },
+                    }}
+                  />
+                  <Typography
+                    sx={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: { xs: "11px", sm: "12.5px", md: "13px" },
+                      fontWeight: 600,
+                      color: "#333333",
+                      lineHeight: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.4,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <Box
+                      component="span"
+                      sx={{
+                        color: "#FF1572",
+                        fontWeight: 700,
+                        fontSize: { xs: "12px", sm: "13px", md: "14px" },
+                      }}
+                    >
+                      {loadingBalance && balanceData === null
+                        ? "..."
+                        : getAvailableCredits().toLocaleString()}
+                    </Box>
+                    <Box
+                      component="span"
+                      sx={{
+                        color: "#666666",
+                        fontWeight: 500,
+                        fontSize: { xs: "10.5px", sm: "12px" },
+                        display: { xs: "none", sm: "inline" },
+                      }}
+                    >
+                      Credits
+                    </Box>
+                  </Typography>
                 </Box>
-                <Box
-                  component="span"
-                  sx={{
-                    color: "#666666",
-                    fontWeight: 500,
-                    fontSize: { xs: "10.5px", sm: "12px" },
-                    display: { xs: "none", sm: "inline" },
-                  }}
-                >
-                  Credits
-                </Box>
-              </Typography>
-            </Box>
-          </Tooltip>
+              </Tooltip>
+            );
+          })()}
 
           <Button
             variant="contained"

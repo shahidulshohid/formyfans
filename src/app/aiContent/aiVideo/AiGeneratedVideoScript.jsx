@@ -165,6 +165,8 @@ const AiGeneratedVideoScript = () => {
             generationData: genData,
             status: genData.status || "processing",
             progress: genData.progress !== undefined ? genData.progress : 5,
+            reservedCredits: genData.reservedCredits || 5,
+            creditsDeducted: genData.creditsDeducted || null,
             message: genData.message || "Your video is being created by AI. Please check back shortly.",
             estimatedWaitSeconds: genData.estimatedWaitSeconds || 65,
             prompt: genData.prompt || finalPrompt,

@@ -90,10 +90,30 @@ export const confirmStripePaymentIntent = async (paymentIntentId, data = {}) => 
   };
 };
 
+/**
+ * Update AI credit pricing (Admin)
+ * PUT /credits/pricing
+ * @param {Object} data - { reservationSafetyMultiplier: number, pricePerCredit?: number, ... }
+ * @returns {Promise<Object>} API response
+ */
+export const updateCreditPricing = async (data) => {
+  const payload = { ...data };
+  if (payload.reservationSafetyMultiplier !== undefined) {
+    const multiplier = Number(payload.reservationSafetyMultiplier);
+    if (isNaN(multiplier) || multiplier < 1 || multiplier > 10) {
+      throw new Error("reservationSafetyMultiplier must be between 1 and 10.");
+    }
+    payload.reservationSafetyMultiplier = multiplier;
+  }
+  return api(AI_CONTENT_ENDPOINTS.CREDIT_PRICING, payload, "put");
+};
+
 export default {
   getCreditBalance,
   getCreditPricing,
+  updateCreditPricing,
   calculateCreditPrice,
   purchaseAiCredits,
   confirmStripePaymentIntent,
 };
+
