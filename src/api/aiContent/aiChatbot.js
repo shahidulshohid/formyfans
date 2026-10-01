@@ -1,7 +1,8 @@
 import axios from "axios";
 
 export const AI_CHATBOT_BASE_URL =
-  import.meta.env.VITE_AI_API_BASE_URL || "http://206.162.244.175:8025/api/v1";
+  // import.meta.env.VITE_AI_API_BASE_URL || "http://206.162.244.175:8025/api/v1"; 
+  import.meta.env.VITE_AI_API_BASE_URL || "http://62.72.57.26:8025/api/v1";  
 
 /**
  * Fetch AI Chat History for a user
