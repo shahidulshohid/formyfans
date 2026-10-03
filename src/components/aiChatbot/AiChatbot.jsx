@@ -27,7 +27,7 @@ const INITIAL_MESSAGES = [
   {
     id: "welcome-1",
     sender: "bot",
-    text: "👋 Hey there! I'm your **AI Creative Assistant** for ForMyFansOnly (FMFO).\n\nI can help you craft viral UGC scripts, generate AI image & video ideas, write killer captions, or optimize your content for your fans! How can I assist you today?",
+    text: "👋 Hey there! I'm **RENE**, your AI assistant for ForMyFansOnly (FMFO).\n\nI can help you craft viral UGC scripts, generate AI image & video ideas, write killer captions, or optimize your content for your fans! How can I assist you today?",
     timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     quickActions: [
       { label: "🎨 Create AI Image", path: "/ai-create-image" },
@@ -221,7 +221,7 @@ export const AiChatbot = () => {
         }}
       >
         <Tooltip
-          title={isOpen ? "Close AI Assistant" : "Chat with AI Assistant"}
+          title={isOpen ? "Close RENE" : "Chat with RENE"}
           placement="left"
           arrow
         >
@@ -229,7 +229,7 @@ export const AiChatbot = () => {
             onClick={handleToggle}
             role="button"
             tabIndex={0}
-            aria-label="AI Chatbot"
+            aria-label="RENE AI Chatbot"
             sx={{
               width: { xs: 50, sm: 56 },
               height: { xs: 50, sm: 56 },
@@ -246,7 +246,7 @@ export const AiChatbot = () => {
             <Box
               component="img"
               src={botIconSrc}
-              alt="AI Chatbot"
+              alt="RENE"
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.src = "/aiPowerContent/aiChatBoatImg.png";
@@ -337,7 +337,7 @@ export const AiChatbot = () => {
                 <Box
                   component="img"
                   src={botIconSrc}
-                  alt="AI Bot"
+                  alt="RENE"
                   sx={{
                     width: 22,
                     height: 22,
@@ -370,7 +370,7 @@ export const AiChatbot = () => {
                       fontFamily: "Inter, sans-serif",
                     }}
                   >
-                    AI Creator Assistant
+                    RENE
                   </Typography>
                   <AutoAwesomeRoundedIcon sx={{ fontSize: 16, color: "#FFE082" }} />
                 </Box>
@@ -534,7 +534,7 @@ export const AiChatbot = () => {
                         <Box
                           component="img"
                           src={botIconSrc}
-                          alt="Bot"
+                          alt="RENE"
                           sx={{
                             width: 16,
                             height: 16,
@@ -679,7 +679,7 @@ export const AiChatbot = () => {
                   <Box
                     component="img"
                     src={botIconSrc}
-                    alt="Bot"
+                    alt="RENE"
                     sx={{
                       width: 16,
                       height: 16,
@@ -778,7 +778,7 @@ export const AiChatbot = () => {
             >
               <InputBase
                 inputRef={inputRef}
-                placeholder="Ask AI anything (scripts, prompts, ideas)..."
+                placeholder="Ask RENE anything (scripts, prompts, ideas)..."
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
