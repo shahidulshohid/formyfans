@@ -132,7 +132,7 @@ const FormattedChatMessage = ({ text, isUser }) => {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  gap: 1,
+                  gap: 1.2,
                 }}
               >
                 <Box
@@ -141,10 +141,12 @@ const FormattedChatMessage = ({ text, isUser }) => {
                     alignItems: "center",
                     gap: 0.8,
                     minWidth: 0,
+                    flex: 1,
+                    overflow: "hidden",
                   }}
                 >
                   <SmartDisplayRoundedIcon
-                    sx={{ fontSize: 18, color: "#FF1572" }}
+                    sx={{ fontSize: 18, color: "#FF1572", flexShrink: 0 }}
                   />
                   <Typography
                     sx={{
@@ -155,7 +157,6 @@ const FormattedChatMessage = ({ text, isUser }) => {
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
-                      maxWidth: { xs: "180px", sm: "220px" },
                     }}
                   >
                     {seg.label && seg.label !== seg.url
@@ -172,23 +173,26 @@ const FormattedChatMessage = ({ text, isUser }) => {
                   size="small"
                   endIcon={
                     <OpenInNewRoundedIcon
-                      sx={{ fontSize: "12px !important" }}
+                      sx={{ fontSize: "13px !important" }}
                     />
                   }
                   sx={{
                     textTransform: "none",
-                    fontSize: "11px",
+                    fontSize: "11.5px",
                     fontWeight: 600,
-                    py: 0.2,
-                    px: 1,
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                    lineHeight: 1.2,
+                    py: 0.4,
+                    px: 1.2,
                     borderRadius: "6px",
                     color: "#FF80AB",
-                    bgcolor: "rgba(255, 21, 114, 0.12)",
+                    bgcolor: "rgba(255, 21, 114, 0.15)",
                     "&:hover": {
                       bgcolor: "#FF1572",
                       color: "#ffffff",
                     },
-                    minWidth: "auto",
+                    minWidth: "max-content",
                   }}
                 >
                   Open
@@ -318,6 +322,11 @@ const FormattedChatMessage = ({ text, isUser }) => {
         flexDirection: "column",
         gap: 0.6,
         width: "100%",
+        minWidth: 0,
+        maxWidth: "100%",
+        boxSizing: "border-box",
+        overflowWrap: "anywhere",
+        wordBreak: "break-word",
       }}
     >
       {lines.map((line, lIdx) => {
@@ -332,6 +341,12 @@ const FormattedChatMessage = ({ text, isUser }) => {
             sx={{
               display: "block",
               lineHeight: 1.55,
+              width: "100%",
+              minWidth: 0,
+              maxWidth: "100%",
+              boxSizing: "border-box",
+              overflowWrap: "anywhere",
+              wordBreak: "break-word",
             }}
           >
             {renderInline(line, `l-${lIdx}`)}
@@ -639,11 +654,11 @@ export const AiChatbot = () => {
           sx={{
             position: "fixed",
             bottom: { xs: 88, sm: 104 },
-            right: { xs: 16, sm: 30, md: 36 },
-            width: { xs: "calc(100vw - 32px)", sm: "400px", md: "420px" },
-            maxWidth: "420px",
-            height: { xs: "580px", sm: "620px" },
-            maxHeight: "calc(100vh - 130px)",
+            right: { xs: 12, sm: 24, md: 36 },
+            width: { xs: "calc(100vw - 24px)", sm: "420px", md: "450px" },
+            maxWidth: { xs: "calc(100vw - 24px)", sm: "450px" },
+            height: { xs: "580px", sm: "640px" },
+            maxHeight: "calc(100vh - 120px)",
             borderRadius: "24px",
             bgcolor: "#ffffff",
             display: isOpen ? "flex" : "none",
@@ -654,6 +669,7 @@ export const AiChatbot = () => {
             boxShadow:
               "0 20px 50px -10px rgba(0, 0, 0, 0.2), 0 10px 25px -5px rgba(255, 21, 114, 0.15)",
             fontFamily: "Inter, sans-serif",
+            boxSizing: "border-box",
           }}
         >
           {/* Header */}
@@ -804,11 +820,14 @@ export const AiChatbot = () => {
             sx={{
               flex: 1,
               overflowY: "auto",
-              p: 2,
+              overflowX: "hidden", // Completely eliminate horizontal scrollbar
+              p: { xs: 1.5, sm: 2 },
               bgcolor: "#FAF9FB",
               display: "flex",
               flexDirection: "column",
               gap: 2,
+              width: "100%",
+              boxSizing: "border-box",
               "&::-webkit-scrollbar": {
                 width: "5px",
               },
@@ -857,6 +876,8 @@ export const AiChatbot = () => {
                     flexDirection: "column",
                     alignItems: isUser ? "flex-end" : "flex-start",
                     gap: 0.5,
+                    width: "100%",
+                    boxSizing: "border-box",
                   }}
                 >
                   <Box
@@ -864,7 +885,9 @@ export const AiChatbot = () => {
                       display: "flex",
                       alignItems: "flex-start",
                       gap: 1,
-                      maxWidth: "90%",
+                      width: isUser ? "auto" : "100%",
+                      maxWidth: isUser ? "85%" : "100%",
+                      boxSizing: "border-box",
                     }}
                   >
                     {!isUser && (
@@ -898,7 +921,7 @@ export const AiChatbot = () => {
 
                     <Box
                       sx={{
-                        p: 1.75,
+                        p: { xs: 1.25, sm: 1.6 },
                         borderRadius: isUser
                           ? "20px 20px 4px 20px"
                           : "20px 20px 20px 4px",
@@ -912,6 +935,11 @@ export const AiChatbot = () => {
                         lineHeight: 1.5,
                         fontFamily: "Inter, sans-serif",
                         wordBreak: "break-word",
+                        overflowWrap: "anywhere",
+                        flex: 1,
+                        minWidth: 0,
+                        maxWidth: "100%",
+                        boxSizing: "border-box",
                       }}
                     >
                       <FormattedChatMessage text={msg.text} isUser={isUser} />
