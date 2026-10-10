@@ -2,7 +2,8 @@ import axios from "axios";
 
 export const AI_CHATBOT_BASE_URL =
   // import.meta.env.VITE_AI_API_BASE_URL || "http://206.162.244.175:8025/api/v1"; 
-  import.meta.env.VITE_AI_API_BASE_URL || "http://62.72.57.26:8025/api/v1";  
+  // import.meta.env.VITE_AI_API_BASE_URL || "http://62.72.57.26:8025/api/v1";  
+  import.meta.env.VITE_AI_API_BASE_URL || "https://nephelinitic-kaiden-instinctive.ngrok-free.dev/api/v1";    
 
 /**
  * Fetch AI Chat History for a user
@@ -14,6 +15,10 @@ export const getAiChatHistory = async (userId) => {
   try {
     const response = await axios.get(`${AI_CHATBOT_BASE_URL}/chat/history`, {
       params: { user_id: userId },
+      headers: {
+        "ngrok-skip-browser-warning": "69420",
+        Accept: "application/json",
+      },
       timeout: 15000,
     });
     return response.data;
@@ -41,6 +46,8 @@ export const sendAiChatMessage = async (userId, userMessage) => {
       {
         headers: {
           "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "69420",
+          Accept: "application/json",
         },
         timeout: 30000,
       }

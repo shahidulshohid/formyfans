@@ -9,6 +9,7 @@ import {
   Chip,
   Grow,
   CircularProgress,
+  Button,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
@@ -17,10 +18,329 @@ import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+import SmartDisplayRoundedIcon from "@mui/icons-material/SmartDisplayRounded";
+import PlayCircleOutlineRoundedIcon from "@mui/icons-material/PlayCircleOutlineRounded";
 import { useNavigate } from "react-router-dom";
 import { aiChatBoatImg } from "../../assets/aiAssets";
 import useUserStore from "../../zustand/userUserStore";
 import { getAiChatHistory, sendAiChatMessage } from "../../api/aiContent/aiChatbot";
+
+// Helper to detect if a URL is a direct video file
+const isVideoUrl = (url) => {
+  if (!url || typeof url !== "string") return false;
+  const cleanUrl = url.split("?")[0].toLowerCase();
+  return (
+    cleanUrl.endsWith(".mp4") ||
+    cleanUrl.endsWith(".webm") ||
+    cleanUrl.endsWith(".ogg") ||
+    cleanUrl.endsWith(".mov") ||
+    cleanUrl.endsWith(".m4v") ||
+    cleanUrl.includes(".mp4")
+  );
+};
+
+// Helper to detect YouTube links
+const getYouTubeEmbedUrl = (url) => {
+  if (!url || typeof url !== "string") return null;
+  const match = url.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/i
+  );
+  return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+};
+
+// Component to render rich text with clickable links, bolding, and embedded video players
+const FormattedChatMessage = ({ text, isUser }) => {
+  if (!text) return null;
+
+  // Split lines to keep formatting and paragraph breaks
+  const lines = text.split("\n");
+
+  const renderInline = (line, keyPrefix) => {
+    // Matches markdown links [Label](URL) OR bare URLs (https?://...)
+    const linkRegex =
+      /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g;
+
+    const segments = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = linkRegex.exec(line)) !== null) {
+      if (match.index > lastIndex) {
+        segments.push({
+          type: "text",
+          content: line.substring(lastIndex, match.index),
+        });
+      }
+
+      if (match[1] && match[2]) {
+        // [Label](URL)
+        segments.push({
+          type: "link",
+          label: match[1],
+          url: match[2],
+        });
+      } else if (match[3]) {
+        // Raw URL
+        segments.push({
+          type: "link",
+          label: match[3],
+          url: match[3],
+        });
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < line.length) {
+      segments.push({
+        type: "text",
+        content: line.substring(lastIndex),
+      });
+    }
+
+    return segments.map((seg, sIdx) => {
+      const segKey = `${keyPrefix}-s-${sIdx}`;
+
+      if (seg.type === "link") {
+        const isVid = isVideoUrl(seg.url);
+        const ytEmbed = getYouTubeEmbedUrl(seg.url);
+
+        // 1. Direct Video Embed Card
+        if (isVid) {
+          return (
+            <Box
+              key={segKey}
+              sx={{
+                my: 1.2,
+                width: "100%",
+                borderRadius: "14px",
+                overflow: "hidden",
+                bgcolor: isUser ? "rgba(255,255,255,0.12)" : "#0F172A",
+                border: isUser
+                  ? "1px solid rgba(255,255,255,0.25)"
+                  : "1px solid rgba(255, 21, 114, 0.2)",
+                boxShadow: "0 6px 18px rgba(0, 0, 0, 0.12)",
+              }}
+            >
+              {/* Video Bar with Label and Open Button */}
+              <Box
+                sx={{
+                  px: 1.5,
+                  py: 0.8,
+                  bgcolor: isUser ? "rgba(255,255,255,0.18)" : "#1E293B",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1,
+                }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.8,
+                    minWidth: 0,
+                  }}
+                >
+                  <SmartDisplayRoundedIcon
+                    sx={{ fontSize: 18, color: "#FF1572" }}
+                  />
+                  <Typography
+                    sx={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#ffffff",
+                      fontFamily: "Inter, sans-serif",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      maxWidth: { xs: "180px", sm: "220px" },
+                    }}
+                  >
+                    {seg.label && seg.label !== seg.url
+                      ? seg.label
+                      : "Video Tutorial"}
+                  </Typography>
+                </Box>
+
+                <Button
+                  component="a"
+                  href={seg.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  size="small"
+                  endIcon={
+                    <OpenInNewRoundedIcon
+                      sx={{ fontSize: "12px !important" }}
+                    />
+                  }
+                  sx={{
+                    textTransform: "none",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    py: 0.2,
+                    px: 1,
+                    borderRadius: "6px",
+                    color: "#FF80AB",
+                    bgcolor: "rgba(255, 21, 114, 0.12)",
+                    "&:hover": {
+                      bgcolor: "#FF1572",
+                      color: "#ffffff",
+                    },
+                    minWidth: "auto",
+                  }}
+                >
+                  Open
+                </Button>
+              </Box>
+
+              {/* Native HTML5 Video Player */}
+              <Box
+                sx={{
+                  position: "relative",
+                  width: "100%",
+                  bgcolor: "#000000",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Box
+                  component="video"
+                  controls
+                  playsInline
+                  preload="metadata"
+                  src={seg.url}
+                  sx={{
+                    width: "100%",
+                    maxHeight: "220px",
+                    display: "block",
+                    outline: "none",
+                  }}
+                />
+              </Box>
+            </Box>
+          );
+        }
+
+        // 2. YouTube Embed Card
+        if (ytEmbed) {
+          return (
+            <Box
+              key={segKey}
+              sx={{
+                my: 1.2,
+                width: "100%",
+                borderRadius: "14px",
+                overflow: "hidden",
+                border: "1px solid rgba(255, 21, 114, 0.2)",
+                boxShadow: "0 6px 18px rgba(0, 0, 0, 0.12)",
+              }}
+            >
+              <Box
+                component="iframe"
+                src={ytEmbed}
+                title={seg.label || "YouTube Video"}
+                sx={{
+                  width: "100%",
+                  height: "200px",
+                  border: "none",
+                  display: "block",
+                }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </Box>
+          );
+        }
+
+        // 3. Clickable Link Button / Pill
+        return (
+          <Box
+            key={segKey}
+            component="a"
+            href={seg.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.5,
+              color: isUser ? "#ffffff" : "#FF1572",
+              fontWeight: 600,
+              textDecoration: "underline",
+              textUnderlineOffset: "3px",
+              wordBreak: "break-all",
+              mx: 0.3,
+              transition: "opacity 0.2s ease",
+              "&:hover": {
+                opacity: 0.8,
+              },
+            }}
+          >
+            {seg.label}
+            <OpenInNewRoundedIcon sx={{ fontSize: 13 }} />
+          </Box>
+        );
+      }
+
+      // Handle bold **text** within standard text
+      const boldParts = seg.content.split(/(\*\*.*?\*\*)/g);
+      return (
+        <React.Fragment key={segKey}>
+          {boldParts.map((bp, bIdx) => {
+            if (bp.startsWith("**") && bp.endsWith("**")) {
+              return (
+                <Box
+                  key={`${segKey}-b-${bIdx}`}
+                  component="strong"
+                  sx={{
+                    fontWeight: 700,
+                    color: isUser ? "inherit" : "#0F172A",
+                  }}
+                >
+                  {bp.slice(2, -2)}
+                </Box>
+              );
+            }
+            return bp;
+          })}
+        </React.Fragment>
+      );
+    });
+  };
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.6,
+        width: "100%",
+      }}
+    >
+      {lines.map((line, lIdx) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return <Box key={`blank-${lIdx}`} sx={{ height: 4 }} />;
+        }
+
+        return (
+          <Box
+            key={`line-${lIdx}`}
+            sx={{
+              display: "block",
+              lineHeight: 1.55,
+            }}
+          >
+            {renderInline(line, `l-${lIdx}`)}
+          </Box>
+        );
+      })}
+    </Box>
+  );
+};
 
 // Initial welcoming message fallback
 const INITIAL_MESSAGES = [
@@ -84,13 +404,46 @@ export const AiChatbot = () => {
       try {
         const data = await getAiChatHistory(activeUserId);
 
-        if (data && Array.isArray(data.messages) && data.messages.length > 0) {
-          const formattedMessages = data.messages.map((item, index) => ({
-            id: `msg-${index}-${item.created_at || Date.now()}`,
-            sender: item.role === "assistant" || item.role === "bot" ? "bot" : "user",
-            text: item.message,
-            timestamp: formatMessageTime(item.created_at),
-          }));
+        let parsedData = data;
+        if (typeof parsedData === "string") {
+          try {
+            parsedData = JSON.parse(parsedData);
+          } catch (e) {
+            console.warn("Could not parse history string as JSON", e);
+          }
+        }
+
+        const rawList =
+          parsedData?.messages ||
+          parsedData?.data?.messages ||
+          parsedData?.history ||
+          (Array.isArray(parsedData) ? parsedData : []);
+
+        if (Array.isArray(rawList) && rawList.length > 0) {
+          const formattedMessages = rawList.map((item, index) => {
+            const role = (item.role || item.sender || "").toLowerCase();
+            const isBot =
+              role === "assistant" ||
+              role === "bot" ||
+              role === "ai" ||
+              role === "system";
+            const textContent =
+              item.message ||
+              item.text ||
+              item.content ||
+              item.AI_response ||
+              item.user_message ||
+              "";
+
+            return {
+              id: `msg-${index}-${item.created_at || item.createdAt || Date.now()}`,
+              sender: isBot ? "bot" : "user",
+              text: textContent,
+              timestamp: formatMessageTime(
+                item.created_at || item.createdAt || item.timestamp
+              ),
+            };
+          });
           setMessages(formattedMessages);
         } else {
           // If no previous history, show welcome message
@@ -99,14 +452,12 @@ export const AiChatbot = () => {
         setHistoryLoaded(true);
       } catch (err) {
         console.warn("Failed to load chat history, using fallback:", err);
-        if (messages.length === 0) {
-          setMessages(INITIAL_MESSAGES);
-        }
+        setMessages((prev) => (prev.length === 0 ? INITIAL_MESSAGES : prev));
       } finally {
         if (showLoading) setIsLoadingHistory(false);
       }
     },
-    [activeUserId, messages.length]
+    [activeUserId]
   );
 
   // Fetch history when user opens the chatbot for the first time
@@ -560,11 +911,10 @@ export const AiChatbot = () => {
                         fontSize: "13.5px",
                         lineHeight: 1.5,
                         fontFamily: "Inter, sans-serif",
-                        whiteSpace: "pre-line",
                         wordBreak: "break-word",
                       }}
                     >
-                      {msg.text}
+                      <FormattedChatMessage text={msg.text} isUser={isUser} />
 
                       {/* Tool / Navigation Shortcuts inside Bot Message */}
                       {(msg.tools || msg.quickActions) && (
