@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import { toast } from "react-toastify";
 import Header from "../../../components/header";
 import {
@@ -18,6 +19,7 @@ import {
 } from "../../../assets/aiAssets";
 import { refineAiPrompt } from "../../../api/aiContent/prompts";
 import { createAiGeneration } from "../../../api/aiContent/generations";
+import AiVideoHistoryModal from "./AiVideoHistoryModal";
 
 const defaultScript = `A breathtaking aerial video showcasing a drone flyover of the Sundarbans mangrove forest in Bangladesh at sunrise. The scene captures the serene beauty of misty waterways winding through the lush, dense canopy. The camera glides smoothly, highlighting the vibrant greens of the mangroves and the soft golden hues of the sunrise filtering through the trees. Wildlife can be seen in the underbrush and waterways, adding life to the tranquil landscape. The composition emphasizes the vastness of the forest, with gentle motion to create a cinematic feel, all within a 720p resolution and a 16:9 aspect ratio, lasting 5 seconds.`;
 
@@ -37,6 +39,7 @@ const AiGeneratedVideoScript = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
   const [generateLoading, setGenerateLoading] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const handleBack = () => {
     navigate(-1);
@@ -462,6 +465,39 @@ const AiGeneratedVideoScript = () => {
             >
               {isEditing ? "Save Script" : "Edit Script"}
             </Button>
+
+            {/* Video History Button */}
+            <Button
+              variant="outlined"
+              onClick={() => setIsHistoryOpen(true)}
+              startIcon={<HistoryRoundedIcon sx={{ fontSize: "18px" }} />}
+              sx={{
+                bgcolor: "#FFFFFF",
+                color: "#FF1572",
+                borderColor: "#FF1572",
+                borderRadius: "53px",
+                height: "44px",
+                px: { xs: "10px", sm: "16px", md: "18px" },
+                py: "10px",
+                gap: { xs: "4px", sm: "6px" },
+                fontSize: { xs: "11px", sm: "13px", md: "14px" },
+                fontWeight: 600,
+                textTransform: "none",
+                fontFamily: "Inter, sans-serif",
+                boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.08)",
+                whiteSpace: "nowrap",
+                flex: { xs: 1, sm: "none" },
+                minWidth: 0,
+                "&:hover": {
+                  bgcolor: "#FFF0F6",
+                  borderColor: "#FF1572",
+                  transform: "translateY(-1px)",
+                },
+                transition: "all 0.2s ease-in-out",
+              }}
+            >
+              Video History
+            </Button>
           </Box>
 
           {/* Right Action Button: Generate Video */}
@@ -508,6 +544,16 @@ const AiGeneratedVideoScript = () => {
           </Button>
         </Box>
       </Container>
+
+      {/* AI Video History Modal */}
+      <AiVideoHistoryModal
+        open={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        onSelectPrompt={(selectedPrompt) => {
+          setScriptText(selectedPrompt);
+          setIsEditing(false);
+        }}
+      />
     </Box>
   );
 };

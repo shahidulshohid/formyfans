@@ -28,7 +28,18 @@ export const getAiGenerationStatus = async (generationId) => {
   return api(endpoint, null, "get");
 };
 
+/**
+ * Get AI Generations History
+ * GET /ai/generations?page=1&limit=10
+ * @param {Object} [params] - { page, limit, type }
+ * @returns {Promise<Object>} API response with { data: { data: [...], pagination: { ... } } }
+ */
+export const getAiGenerations = async (params = { page: 1, limit: 10 }) => {
+  return api(AI_CONTENT_ENDPOINTS.GENERATIONS, params, "get");
+};
+
 export default {
   createAiGeneration,
   getAiGenerationStatus,
+  getAiGenerations,
 };
