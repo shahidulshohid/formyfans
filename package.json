@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --mode development --port 5173",
-    "build": "vite build",
-    "start": "vite preview --host 0.0.0.0 --port 5173",
+    "dev": "node api.js && vite --mode development --port 5173",
+    "build": "node api.js && vite build",
+    "start": "node api.js && vite preview --host 0.0.0.0 --port 5173",
     "start:stag": "vite preview --mode staging --port 5173",
     "start:prod": "vite preview --mode production --port 5173",
     "build:dev": "vite build --mode development",
