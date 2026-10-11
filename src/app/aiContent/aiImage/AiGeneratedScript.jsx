@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import { useLocation, useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import { toast } from "react-toastify";
 import Header from "../../../components/header";
 import {
@@ -18,6 +19,7 @@ import {
 } from "../../../assets/aiAssets";
 import { refineAiPrompt } from "../../../api/aiContent/prompts";
 import { createAiGeneration } from "../../../api/aiContent/generations";
+import AiVideoHistoryModal from "../aiVideo/AiVideoHistoryModal";
 
 const AiGeneratedScript = () => {
   const navigate = useNavigate();
@@ -35,6 +37,7 @@ const AiGeneratedScript = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
   const [generateLoading, setGenerateLoading] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const handleBack = () => {
     navigate(-1);
@@ -418,6 +421,39 @@ const AiGeneratedScript = () => {
             >
               {isEditing ? "Save Script" : "Edit Script"}
             </Button>
+
+            {/* Generated History Button */}
+            <Button
+              variant="outlined"
+              onClick={() => setIsHistoryOpen(true)}
+              startIcon={<HistoryRoundedIcon sx={{ fontSize: "18px" }} />}
+              sx={{
+                bgcolor: "#FFFFFF",
+                color: "#FF1572",
+                borderColor: "#FF1572",
+                borderRadius: "53px",
+                height: "44px",
+                px: { xs: "10px", sm: "16px", md: "18px" },
+                py: "10px",
+                gap: { xs: "4px", sm: "6px" },
+                fontSize: { xs: "11px", sm: "13px", md: "14px" },
+                fontWeight: 600,
+                textTransform: "none",
+                fontFamily: "Inter, sans-serif",
+                boxShadow: "0px 1px 2px 0px rgba(0, 0, 0, 0.08)",
+                whiteSpace: "nowrap",
+                flex: { xs: 1, sm: "none" },
+                minWidth: 0,
+                "&:hover": {
+                  bgcolor: "#FFF0F6",
+                  borderColor: "#FF1572",
+                  transform: "translateY(-1px)",
+                },
+                transition: "all 0.2s ease-in-out",
+              }}
+            >
+              Generated History
+            </Button>
           </Box>
 
           {/* Right Action Button: Generate Image */}
@@ -464,6 +500,18 @@ const AiGeneratedScript = () => {
           </Button>
         </Box>
       </Container>
+
+      {/* AI History Modal */}
+      <AiVideoHistoryModal
+        open={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        title="Generated History"
+        defaultType="ALL"
+        onSelectPrompt={(selectedPrompt) => {
+          setScriptText(selectedPrompt);
+          setIsEditing(false);
+        }}
+      />
     </Box>
   );
 };
