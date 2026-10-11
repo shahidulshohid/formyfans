@@ -19,12 +19,12 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import VideoLibraryRoundedIcon from "@mui/icons-material/VideoLibraryRounded";
+import PhotoLibraryRoundedIcon from "@mui/icons-material/PhotoLibraryRounded";
+import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import HourglassTopRoundedIcon from "@mui/icons-material/HourglassTopRounded";
 import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
 import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
-import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import EditNoteRoundedIcon from "@mui/icons-material/EditNoteRounded";
 import CalendarTodayRoundedIcon from "@mui/icons-material/CalendarTodayRounded";
@@ -107,10 +107,14 @@ const StatusBadge = ({ status, progress }) => {
   );
 };
 
-const VideoCard = ({ item, onSelectPrompt, onOpenInStudio, onCloseModal }) => {
+const MediaCard = ({ item, onSelectPrompt, onOpenInStudio, onCloseModal }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+
+  const isImage =
+    item.type?.toUpperCase() === "IMAGE" ||
+    /\.(jpe?g|png|webp|gif|svg)$/i.test(item.mediaUrl || "");
 
   const handleCopyPrompt = (e) => {
     e.stopPropagation();
@@ -125,19 +129,22 @@ const VideoCard = ({ item, onSelectPrompt, onOpenInStudio, onCloseModal }) => {
   const handleDownload = async (e) => {
     e.stopPropagation();
     if (!item.mediaUrl) {
-      toast.error("Video URL is not available yet.");
+      toast.error("Media URL is not available yet.");
       return;
     }
     setDownloading(true);
     try {
-      const fileName = `ai_video_${item.generationId || Date.now()}.mp4`;
-      const success = await downloadMedia(item.mediaUrl, fileName, "video/mp4");
+      const fileName = isImage
+        ? `ai_image_${item.generationId || Date.now()}.png`
+        : `ai_video_${item.generationId || Date.now()}.mp4`;
+      const mimeType = isImage ? "image/png" : "video/mp4";
+      const success = await downloadMedia(item.mediaUrl, fileName, mimeType);
       if (success) {
-        toast.success("Video download started!");
+        toast.success(`${isImage ? "Image" : "Video"} download started!`);
       }
     } catch (err) {
-      console.error("Error downloading video:", err);
-      toast.error("Failed to download video.");
+      console.error("Error downloading media:", err);
+      toast.error("Failed to download media.");
     } finally {
       setDownloading(false);
     }
@@ -171,7 +178,7 @@ const VideoCard = ({ item, onSelectPrompt, onOpenInStudio, onCloseModal }) => {
         },
       }}
     >
-      {/* Video Media Area */}
+      {/* Media Preview Area */}
       <Box
         sx={{
           position: "relative",
@@ -182,22 +189,41 @@ const VideoCard = ({ item, onSelectPrompt, onOpenInStudio, onCloseModal }) => {
         }}
       >
         {isCompleted ? (
-          <Box
-            component="video"
-            src={item.mediaUrl}
-            controls
-            preload="metadata"
-            playsInline
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              bgcolor: "#000",
-            }}
-          />
+          isImage ? (
+            <Box
+              component="img"
+              src={item.mediaUrl}
+              alt={item.prompt || "AI generated image"}
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                bgcolor: "#000",
+                cursor: "pointer",
+              }}
+              onClick={() => window.open(item.mediaUrl, "_blank")}
+            />
+          ) : (
+            <Box
+              component="video"
+              src={item.mediaUrl}
+              controls
+              preload="metadata"
+              playsInline
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                bgcolor: "#000",
+              }}
+            />
+          )
         ) : (
           <Box
             sx={{
@@ -219,7 +245,7 @@ const VideoCard = ({ item, onSelectPrompt, onOpenInStudio, onCloseModal }) => {
               <>
                 <CircularProgress size={32} sx={{ color: "#FF1572", mb: 1.5 }} />
                 <Typography sx={{ fontSize: "13px", color: "#F8FAFC", fontWeight: 500 }}>
-                  Generating Video...
+                  Generating {isImage ? "Image" : "Video"}...
                 </Typography>
                 <Typography sx={{ fontSize: "11px", color: "#94A3B8", mt: 0.5 }}>
                   Progress: {item.progress || 0}%
@@ -242,8 +268,21 @@ const VideoCard = ({ item, onSelectPrompt, onOpenInStudio, onCloseModal }) => {
         )}
 
         {/* Status Badge in overlay top-left */}
-        <Box sx={{ position: "absolute", top: 10, left: 10, zIndex: 2 }}>
+        <Box sx={{ position: "absolute", top: 10, left: 10, zIndex: 2, display: "flex", gap: 0.8 }}>
           <StatusBadge status={item.status} progress={item.progress} />
+          <Chip
+            label={isImage ? "IMAGE" : "VIDEO"}
+            size="small"
+            sx={{
+              bgcolor: "rgba(0, 0, 0, 0.65)",
+              backdropFilter: "blur(4px)",
+              color: "#FFFFFF",
+              fontWeight: 700,
+              fontSize: "10px",
+              height: "24px",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+            }}
+          />
         </Box>
 
         {/* Credits Badge in overlay top-right */}
@@ -392,7 +431,7 @@ const VideoCard = ({ item, onSelectPrompt, onOpenInStudio, onCloseModal }) => {
 
             {/* Download */}
             {isCompleted && (
-              <Tooltip title={downloading ? "Downloading..." : "Download video"} arrow>
+              <Tooltip title={downloading ? "Downloading..." : `Download ${isImage ? "image" : "video"}`} arrow>
                 <span>
                   <IconButton
                     size="small"
@@ -414,9 +453,9 @@ const VideoCard = ({ item, onSelectPrompt, onOpenInStudio, onCloseModal }) => {
               </Tooltip>
             )}
 
-            {/* Open in studio player */}
+            {/* Open in studio player / viewer */}
             {isCompleted && (
-              <Tooltip title="Open in Studio Player" arrow>
+              <Tooltip title={`Open in ${isImage ? "Image" : "Video"} Studio`} arrow>
                 <IconButton
                   size="small"
                   onClick={() => onOpenInStudio(item)}
@@ -437,7 +476,13 @@ const VideoCard = ({ item, onSelectPrompt, onOpenInStudio, onCloseModal }) => {
   );
 };
 
-const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
+const AiVideoHistoryModal = ({
+  open,
+  onClose,
+  onSelectPrompt,
+  title = "Generated History",
+  defaultType = "ALL", // "ALL" | "IMAGE" | "VIDEO"
+}) => {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
@@ -449,8 +494,16 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
     totalPages: 1,
   });
   const [page, setPage] = useState(1);
+  const [typeFilter, setTypeFilter] = useState(defaultType || "ALL");
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Sync default type when opened
+  useEffect(() => {
+    if (open && defaultType) {
+      setTypeFilter(defaultType);
+    }
+  }, [open, defaultType]);
 
   const fetchHistory = useCallback(async (targetPage = 1) => {
     setLoading(true);
@@ -489,8 +542,8 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
         totalPages: pag.totalPages || Math.ceil((pag.totalCount || items.length) / (pag.limit || 9)) || 1,
       });
     } catch (error) {
-      console.error("Error fetching AI video generations:", error);
-      const msg = error?.response?.data?.message || error?.message || "Failed to load video history.";
+      console.error("Error fetching AI generations:", error);
+      const msg = error?.response?.data?.message || error?.message || "Failed to load history.";
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -509,23 +562,44 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
 
   const handleOpenInStudio = (item) => {
     onClose();
-    navigate("/ai-video-ready", {
-      state: {
-        generationId: item.generationId,
-        mediaUrl: item.mediaUrl,
-        videoUrl: item.mediaUrl,
-        prompt: item.prompt,
-        script: item.prompt,
-        status: item.status || "completed",
-        progress: item.progress || 100,
-        creditsDeducted: item.creditsDeducted,
-        createdAt: item.createdAt,
-        type: item.type || "VIDEO",
-      },
-    });
+    const isImage =
+      item.type?.toUpperCase() === "IMAGE" ||
+      /\.(jpe?g|png|webp|gif|svg)$/i.test(item.mediaUrl || "");
+
+    if (isImage) {
+      navigate("/ai-image-ready", {
+        state: {
+          generationId: item.generationId,
+          mediaUrl: item.mediaUrl,
+          imageUrl: item.mediaUrl,
+          prompt: item.prompt,
+          script: item.prompt,
+          status: item.status || "completed",
+          progress: item.progress || 100,
+          creditsDeducted: item.creditsDeducted,
+          createdAt: item.createdAt,
+          type: "IMAGE",
+        },
+      });
+    } else {
+      navigate("/ai-video-ready", {
+        state: {
+          generationId: item.generationId,
+          mediaUrl: item.mediaUrl,
+          videoUrl: item.mediaUrl,
+          prompt: item.prompt,
+          script: item.prompt,
+          status: item.status || "completed",
+          progress: item.progress || 100,
+          creditsDeducted: item.creditsDeducted,
+          createdAt: item.createdAt,
+          type: item.type || "VIDEO",
+        },
+      });
+    }
   };
 
-  // Filter items by status & search
+  // Filter items by type, status & search
   const filteredGenerations = useMemo(() => {
     return generations.filter((item) => {
       // Must match search query
@@ -535,6 +609,13 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
         const idMatch = String(item.generationId || "").toLowerCase().includes(q);
         if (!pMatch && !idMatch) return false;
       }
+
+      // Filter by type (All, Image, Video)
+      const isImg =
+        item.type?.toUpperCase() === "IMAGE" ||
+        /\.(jpe?g|png|webp|gif|svg)$/i.test(item.mediaUrl || "");
+      if (typeFilter === "IMAGE" && !isImg) return false;
+      if (typeFilter === "VIDEO" && isImg) return false;
 
       // Filter by status tab
       if (statusFilter === "completed") {
@@ -549,7 +630,7 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
 
       return true;
     });
-  }, [generations, statusFilter, searchQuery]);
+  }, [generations, typeFilter, statusFilter, searchQuery]);
 
   return (
     <Dialog
@@ -594,7 +675,13 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
               color: "#FF1572",
             }}
           >
-            <VideoLibraryRoundedIcon sx={{ fontSize: { xs: 22, sm: 26 } }} />
+            {typeFilter === "IMAGE" ? (
+              <PhotoLibraryRoundedIcon sx={{ fontSize: { xs: 22, sm: 26 } }} />
+            ) : typeFilter === "VIDEO" ? (
+              <VideoLibraryRoundedIcon sx={{ fontSize: { xs: 22, sm: 26 } }} />
+            ) : (
+              <AutoAwesomeRoundedIcon sx={{ fontSize: { xs: 22, sm: 26 } }} />
+            )}
           </Box>
           <Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -609,11 +696,11 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
                   letterSpacing: "-0.5px",
                 }}
               >
-                Video History
+                {title || "Generated History"}
               </Typography>
               {pagination.totalCount > 0 && (
                 <Chip
-                  label={`${pagination.totalCount} Videos`}
+                  label={`${pagination.totalCount} Total`}
                   size="small"
                   sx={{
                     bgcolor: "#FF1572",
@@ -633,14 +720,14 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
                 mt: 0.2,
               }}
             >
-              Browse, play, and reuse your AI generated video creations
+              Browse, inspect, and reuse your AI generated content
             </Typography>
           </Box>
         </Box>
 
         {/* Right Header Buttons */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Tooltip title="Refresh video history" arrow>
+          <Tooltip title="Refresh history" arrow>
             <span>
               <IconButton
                 onClick={() => fetchHistory(page)}
@@ -686,42 +773,82 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
           py: 1.8,
           borderBottom: "1px solid #F0EDF2",
           display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
-          alignItems: { xs: "stretch", sm: "center" },
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: { xs: "stretch", md: "center" },
           justifyContent: "space-between",
           gap: 1.5,
         }}
       >
-        {/* Filter Pills */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, overflowX: "auto", pb: { xs: 0.5, sm: 0 } }}>
-          {[
-            { id: "all", label: "All Videos" },
-            { id: "completed", label: "Completed" },
-            { id: "processing", label: "Processing" },
-            { id: "failed", label: "Failed" },
-          ].map((tab) => {
-            const isActive = statusFilter === tab.id;
-            return (
-              <Chip
-                key={tab.id}
-                label={tab.label}
-                clickable
-                onClick={() => setStatusFilter(tab.id)}
-                sx={{
-                  fontFamily: "Inter, sans-serif",
-                  fontWeight: isActive ? 600 : 500,
-                  fontSize: "12px",
-                  bgcolor: isActive ? "#FF1572" : "#F4F4F5",
-                  color: isActive ? "#FFFFFF" : "#52525B",
-                  border: isActive ? "1px solid #FF1572" : "1px solid transparent",
-                  "&:hover": {
-                    bgcolor: isActive ? "#E01062" : "#E4E4E7",
-                  },
-                  transition: "all 0.2s ease",
-                }}
-              />
-            );
-          })}
+        {/* Type & Status Filters */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            flexWrap: "wrap",
+          }}
+        >
+          {/* Type Selector */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mr: { xs: 0, sm: 1 } }}>
+            {[
+              { id: "ALL", label: "All Creations" },
+              { id: "IMAGE", label: "Images" },
+              { id: "VIDEO", label: "Videos" },
+            ].map((tab) => {
+              const isActive = typeFilter === tab.id;
+              return (
+                <Chip
+                  key={tab.id}
+                  label={tab.label}
+                  clickable
+                  onClick={() => setTypeFilter(tab.id)}
+                  sx={{
+                    fontFamily: "Inter, sans-serif",
+                    fontWeight: isActive ? 600 : 500,
+                    fontSize: "12px",
+                    bgcolor: isActive ? "#FF1572" : "#F4F4F5",
+                    color: isActive ? "#FFFFFF" : "#52525B",
+                    border: isActive ? "1px solid #FF1572" : "1px solid transparent",
+                    "&:hover": { bgcolor: isActive ? "#E01062" : "#E4E4E7" },
+                    transition: "all 0.2s ease",
+                  }}
+                />
+              );
+            })}
+          </Box>
+
+          <Box sx={{ height: "20px", width: "1px", bgcolor: "#E4E4E7", display: { xs: "none", sm: "block" } }} />
+
+          {/* Status Filter */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+            {[
+              { id: "all", label: "All Status" },
+              { id: "completed", label: "Completed" },
+              { id: "processing", label: "Processing" },
+              { id: "failed", label: "Failed" },
+            ].map((tab) => {
+              const isActive = statusFilter === tab.id;
+              return (
+                <Chip
+                  key={tab.id}
+                  label={tab.label}
+                  size="small"
+                  clickable
+                  onClick={() => setStatusFilter(tab.id)}
+                  sx={{
+                    fontFamily: "Inter, sans-serif",
+                    fontWeight: isActive ? 600 : 500,
+                    fontSize: "11px",
+                    bgcolor: isActive ? "#18181B" : "#FAFAFA",
+                    color: isActive ? "#FFFFFF" : "#71717A",
+                    border: isActive ? "1px solid #18181B" : "1px solid #E4E4E7",
+                    "&:hover": { bgcolor: isActive ? "#27272A" : "#F4F4F5" },
+                    transition: "all 0.2s ease",
+                  }}
+                />
+              );
+            })}
+          </Box>
         </Box>
 
         {/* Search Field */}
@@ -746,7 +873,7 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
               "&.Mui-focused fieldset": { borderColor: "#FF1572" },
             },
           }}
-          sx={{ minWidth: { xs: "100%", sm: "240px", md: "280px" } }}
+          sx={{ minWidth: { xs: "100%", md: "260px" } }}
         />
       </Box>
 
@@ -816,7 +943,11 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
                 mb: 2,
               }}
             >
-              <VideoLibraryRoundedIcon sx={{ fontSize: 36 }} />
+              {typeFilter === "IMAGE" ? (
+                <PhotoLibraryRoundedIcon sx={{ fontSize: 36 }} />
+              ) : (
+                <VideoLibraryRoundedIcon sx={{ fontSize: 36 }} />
+              )}
             </Box>
             <Typography
               sx={{
@@ -827,9 +958,9 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
                 mb: 0.6,
               }}
             >
-              {searchQuery || statusFilter !== "all"
-                ? "No matching video generations found"
-                : "No video generations yet"}
+              {searchQuery || statusFilter !== "all" || typeFilter !== "ALL"
+                ? "No matching creations found"
+                : "No generations recorded yet"}
             </Typography>
             <Typography
               sx={{
@@ -840,16 +971,17 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
                 mb: 3,
               }}
             >
-              {searchQuery || statusFilter !== "all"
-                ? "Try adjusting your search query or switching filters to view your creations."
-                : "Once you generate AI videos with your script prompts, they will appear here."}
+              {searchQuery || statusFilter !== "all" || typeFilter !== "ALL"
+                ? "Try adjusting your filters or search query to find creations."
+                : "Generated creations will appear here."}
             </Typography>
-            {(searchQuery || statusFilter !== "all") && (
+            {(searchQuery || statusFilter !== "all" || typeFilter !== "ALL") && (
               <Button
                 variant="outlined"
                 onClick={() => {
                   setSearchQuery("");
                   setStatusFilter("all");
+                  setTypeFilter("ALL");
                 }}
                 sx={{
                   fontFamily: "Inter, sans-serif",
@@ -868,7 +1000,7 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
             )}
           </Box>
         ) : (
-          /* Video Cards Grid */
+          /* Media Cards Grid */
           <Box
             sx={{
               display: "grid",
@@ -881,7 +1013,7 @@ const AiVideoHistoryModal = ({ open, onClose, onSelectPrompt }) => {
             }}
           >
             {filteredGenerations.map((item) => (
-              <VideoCard
+              <MediaCard
                 key={item.generationId || item.s3Key || Math.random()}
                 item={item}
                 onSelectPrompt={onSelectPrompt}
