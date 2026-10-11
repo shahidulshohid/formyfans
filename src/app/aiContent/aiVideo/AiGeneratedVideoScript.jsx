@@ -466,7 +466,7 @@ const AiGeneratedVideoScript = () => {
               {isEditing ? "Save Script" : "Edit Script"}
             </Button>
 
-            {/* Video History Button */}
+            {/* Generated History Button */}
             <Button
               variant="outlined"
               onClick={() => setIsHistoryOpen(true)}
@@ -496,7 +496,7 @@ const AiGeneratedVideoScript = () => {
                 transition: "all 0.2s ease-in-out",
               }}
             >
-              Video History
+              Generated History
             </Button>
           </Box>
 
@@ -549,6 +549,8 @@ const AiGeneratedVideoScript = () => {
       <AiVideoHistoryModal
         open={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
+        title="Generated History"
+        defaultType="ALL"
         onSelectPrompt={(selectedPrompt) => {
           setScriptText(selectedPrompt);
           setIsEditing(false);
