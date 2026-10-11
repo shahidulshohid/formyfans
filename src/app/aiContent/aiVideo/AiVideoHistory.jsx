@@ -563,11 +563,11 @@ const AiVideoHistory = () => {
                 letterSpacing: "-1px",
               }}
             >
-              Video History
+              Generated History
             </Typography>
             {pagination.totalCount > 0 && (
               <Chip
-                label={`${pagination.totalCount} Videos`}
+                label={`${pagination.totalCount} Total`}
                 size="small"
                 sx={{
                   bgcolor: "#FF1572",
@@ -586,7 +586,7 @@ const AiVideoHistory = () => {
               fontSize: { xs: "13px", sm: "15px" },
             }}
           >
-            View, replay, and download all your generated AI videos in one place.
+            View, replay, and download all your generated AI content in one place.
           </Typography>
         </Box>
 
